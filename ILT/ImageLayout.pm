@@ -175,7 +175,7 @@ sub image_info
 
 sub   compute_geometry
 {
-    my( $self, $views, $x_pos, $y_pos, $x_sizes, $y_sizes ) = @_;
+    my( $self, $x_pos, $y_pos, $x_sizes, $y_sizes ) = @_;
 
     my( $x_size, $y_size, $row, $col, $n_rows, $n_cols, $image_index,
         $full_x_size, $full_y_size, $hor_white_space, $vert_white_space,
@@ -211,18 +211,22 @@ sub   compute_geometry
             {
                 $image_index = $self->row_col_to_index( $row, $col );
 
-                if( $$views[$image_index]->bounding_box_width >
+                if( $self->{IMAGES}[$image_index]->scene_view()->
+                                                bounding_box_width() >
                     $max_world_width[$col] )
                 {
                     $max_world_width[$col] =
-                           $$views[$image_index]->bounding_box_width;
+                           $self->{IMAGES}[$image_index]->scene_view()->
+                                               bounding_box_width();
                 }
 
-                if( $$views[$image_index]->bounding_box_height >
+                if( $self->{IMAGES}[$image_index]->scene_view()->
+                                                 bounding_box_height() >
                     $max_world_height[$row] )
                 {
                     $max_world_height[$row] =
-                           $$views[$image_index]->bounding_box_height;
+                           $self->{IMAGES}[$image_index]->scene_view()->
+                                                 bounding_box_height();
                 }
             }
         }
@@ -260,12 +264,14 @@ sub   compute_geometry
                 $image_index = $self->row_col_to_index( $row, $col );
 
                 $$x_sizes[$image_index] = int( $scale *
-                             $$views[$image_index]->bounding_box_width ) - 1;
+                             $self->{IMAGES}[$image_index]->scene_view()->
+                                       bounding_box_width() ) - 1;
                 $$x_pos[$image_index] = $current_x +
                               ($width - $$x_sizes[$image_index]) / 2;
 
                 $$y_sizes[$image_index] = int( $scale *
-                             $$views[$image_index]->bounding_box_height ) - 1;
+                             $self->{IMAGES}[$image_index]->scene_view()->
+                                 bounding_box_height() ) - 1;
                 $$y_pos[$image_index] = $current_y +
                               ($height - $$y_sizes[$image_index]) / 2;
 
@@ -285,7 +291,7 @@ sub generate_image
 {
     my( $self ) = @_;
 
-    my( $image_index, @x_pos, @y_pos, @x_size, @y_size, @views,
+    my( $image_index, @x_pos, @y_pos, @x_size, @y_size,
         @tmp_image_files, $filename, $white_space_colour, $layout_args,
         $full_x_size, $full_y_size );
 
@@ -295,12 +301,12 @@ sub generate_image
 
     for( $image_index = 0;  $image_index < $self->{N_IMAGES};  ++$image_index )
     {
-        $views[$image_index] = View->compute_view(
-                                  $self->{IMAGES}[$image_index]->scene_view(),
-                                  $self->{IMAGES}[$image_index]->scene_object );
+        $self->{IMAGES}[$image_index]->scene_view()->
+                        compute_view_for_object(
+                                $self->{IMAGES}[$image_index]->scene_object );
     }
 
-    $self->compute_geometry( \@views, \@x_pos, \@y_pos, \@x_size, \@y_size );
+    $self->compute_geometry( \@x_pos, \@y_pos, \@x_size, \@y_size );
 
     @tmp_image_files = ();
 
@@ -314,9 +320,9 @@ sub generate_image
                     $tmp_image_files[$image_index],
                     $x_size[$image_index],
                     $y_size[$image_index],
-                    $views[$image_index] );
+                    $self->{IMAGES}[$image_index]->scene_view() );
 
-        $self->{IMAGES}[$image_index]->scene_object()->delete_tmp_files();
+        $self->{IMAGES}[$image_index]->scene_object()->delete_temp_geometry_file();
 
         $layout_args = $layout_args . " " . $tmp_image_files[$image_index] .
                        " " . $x_pos[$image_index] .
