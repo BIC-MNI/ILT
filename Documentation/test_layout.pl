@@ -20,7 +20,7 @@
         @view, @plane_object, @surface_object, @volume_object,
         $colour_object, $surface_cross_section, @colour_codes,
         $bounding_object, $clipped_view, $extra_space_around_bounding_object,
-        $object_defining_view );
+        $object_defining_view, $header );
 
 #-------------------------------------------------------
 #
@@ -177,6 +177,18 @@
                                  $image_info );
         }
     }
+
+    #-----------------------------------------------------------------
+    #   Create a header object
+    #-----------------------------------------------------------------
+
+    $header = ILT::TextObject->new( "Header: Output of test_layout.pl",
+                                    .5, .5 );
+    $header->font( "-adobe-helvetica-medium-r-normal--34-240-100-100-p-176-iso8859-1" );
+    $header->colour( "yellow" );
+    $header->horizontal_alignment( Align_centre );
+    $header->vertical_alignment( Align_centre );
+    $layout->header( $header );
 
     #-----------------------------------------------------------------
     #   Render the images and create the output file
