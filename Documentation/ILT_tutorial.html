@@ -1,0 +1,374 @@
+<html>
+
+<head>
+<title>A Tutorial Introduction to the Image Layout Toolkit (ILT) </title>
+</head>
+
+<body>
+
+<h1> A Tutorial Introduction to the Image Layout Toolkit (ILT)
+</h1>
+
+David MacDonald
+(david@bic.mni.mcgill.ca)
+
+<ul>
+  <li> <a href="ILT_tutorial.html#Introduction">Introduction</a>
+  <li> <a href="ILT_tutorial.html#Overview">Overview of ILT</a>
+  <li> <a href="ILT_tutorial.html#Ex1">Example 1: Surface Without Lighting</a>
+  <li> <a href="ILT_tutorial.html#Ex2">Example 2: Colour-coded Slice of a Volume</a>
+  <li> <a href="ILT_tutorial.html#Ex3">Example 3: Colour-Coded Slice of a Volume with Cross
+Section of Surface</a>
+  <li> <a href="ILT_tutorial.html#Ex4">Example 4: Colour-Coded Slice of Pet on top of MRI</a>
+  <li> <a href="ILT_tutorial.html#ProgRef">Programmers' Reference</a>
+</ul>
+
+<!--------------------------------------------------------------------->
+
+<h2><a name="Introduction">Introduction</a></h2>
+
+The MNI Image Layout Toolkit is a Perl library which provides methods to
+create two and three dimensional images of volumes, surfaces, and lines
+for image-based analysis verification, as well as high quality images
+for publication.  The package is built on top of command-line programs
+for various geometric object manipulation, and the <a
+href="http://www.bic.mni.mcgill.ca/~david/Ray_trace/ray_trace_tutorial.html">
+MNI-ray_trace</a> program for image rendering.  As of May, 1998, this
+toolkit was only partially completed, but with enough features for
+most tasks.
+
+What follows is a tutorial consisting of a brief overview of the
+system, then some examples, starting with the
+simpler cases and progressing to more complicated examples.
+
+<!--------------------------------------------------------------------->
+
+<hr>
+<h2><a name="Overview">Overview of ILT</a></h2>
+
+ILT is a set of Perl5 packages for defining scenes to be rendered in
+an object-oriented fashion.  The relevant objects are:
+
+<ul>
+  <li> <B> ImageLayout </B>: a top level object that controls the
+           layout of one or more images within a larger image,
+           usually on a grid layout.  Contains a reference to one
+           <B> ImageInfo </B> object for each image it contains.
+  <li> <B> ImageInfo </B> : an object that has all the information
+           needed to create an image, a reference to a <B> SceneObject </B>
+           and to a <B> View </B>, plus some rendering parameters.
+  <li> <B> SceneObject </B> : a geometric object which can be a simple
+object such as a plane or a surface, or a composite object, such as a
+union or intersection of other objects.
+  <li> <B> View </B> : a definition of a 3D view, containing the eye
+           position, the viewing direction, the up direction, and
+           other viewing parameters.
+</ul>
+
+The basic model is to create an <B> ImageLayout </B> object of
+<I>m</I> by <I>n</I> sub-image.  Then for each sub-image, define the
+<B>SceneObject</B> geometry and the <B>View</B>, combining these two
+into the <B>ImageInfo</B> object for the sub-image.
+
+<!--------------------------------------------------------------------->
+
+
+<hr>
+<h2><a name="Ex1">Example 1: Surface Without Lighting</a></h2>
+
+<p>
+<img src="Images/example1.gif">
+</p>
+
+<pre>
+#!/usr/local/bin/perl5 -w
+
+    use ILT::LayoutInclude;
+    use ILT::LayoutUtils;
+
+    $layout = new_grid ILT::ImageLayout ( 1, 1 );
+
+    $surface = new ILT::GeometricObject ( "Data/surf2.obj" );
+    $view = new_canonical ILT::View ( Left_view );
+    $image_info = new ILT::ImageInfo ( $surface, $view );
+    $layout->image_info( 0, $image_info );
+
+    $layout->generate_image( "Images/example1.gif", 200, 0 );
+</pre>
+
+<h3> Geometry Structure </h3>
+
+The scene geometry is very simple, just a single object:
+
+<p>
+    GeometricObject
+</p>
+
+<!--------------------------------------------------------------------->
+
+
+<hr>
+<h2><a name="Ex2">Example 2: Colour-coded Slice of a Volume</a></h2>
+
+<p>
+<img src="Images/example2.gif">
+</p>
+
+<pre>
+#!/usr/local/bin/perl5 -w
+
+    use ILT::LayoutInclude;
+    use ILT::LayoutUtils;
+
+    $layout = new_grid ILT::ImageLayout ( 1, 1 );
+
+    $plane_object = new_canonical ILT::PlaneObject ( Sagittal_axis, -10 );
+    $view = new_canonical ILT::View ( Left_view );
+    $volume_object = new ILT::VolumeObject ( "Data/volume1.mnc" );
+
+    $scene_object =
+                  new_volume_colouring ILT::ColourObject (
+                       new ILT::IntersectionObject ( $plane_object,
+                                                     $volume_object ),
+                       $volume_object, Hot_metal_scale, 50, 150 );
+
+    $image_info = new ILT::ImageInfo ( $scene_object, $view );
+    $layout->image_info( 0, $image_info );
+
+    $layout->generate_image( "Images/example2.gif", 200, 0 );
+</pre>
+
+<h3> Geometry Structure </h3>
+
+The geometry is the intersection of a plane and a volume, which is
+then volume-coloured, using the same volume.
+
+<ul>
+    <li> VolumeColouring
+    <ul>
+        <li> Intersection
+               <ul>
+                 <li> Plane 
+                 <li> Volume
+               </ul>
+    </ul>
+</ul>
+
+<!--------------------------------------------------------------------->
+
+<hr>
+<h2><a name="Ex3">Example 3: Colour-Coded Slice of a Volume with Cross
+Section of Surface</a></h2>
+
+<p>
+<img src="Images/example3.gif">
+</p>
+
+<pre>
+#!/usr/local/bin/perl5 -w
+
+    use ILT::LayoutInclude;
+    use ILT::LayoutUtils;
+
+    $layout = new_grid ILT::ImageLayout ( 1, 1 );
+
+    $plane_object = new_canonical ILT::PlaneObject ( Sagittal_axis, -10 );
+    $view = new_canonical ILT::View ( Left_view );
+    $volume_object = new ILT::VolumeObject ( "Data/volume1.mnc" );
+    $surface_object = new ILT::GeometricObject ( "Data/surf2.obj" );
+
+    $cross = new ILT::IntersectionObject ( $plane_object, $surface_object );
+
+    $slice = new_volume_colouring ILT::ColourObject (
+                       new ILT::IntersectionObject ( $plane_object,
+                                                     $volume_object ),
+                       $volume_object, Gray_scale, 50, 150 );
+
+    $scene_object = new ILT::UnionObject ( $cross, $slice );
+
+    $image_info = new ILT::ImageInfo ( $scene_object, $view );
+    $layout->image_info( 0, $image_info );
+
+    $layout->generate_image( "Images/example3.gif", 200, 0 );
+</pre>
+
+<h3> Geometry Structure </h3>
+
+The SceneObject is a bit more complicated in this case.  Note that the
+volume colouring only applies to the intersection of the plane and the
+volume, but not to the intersection of the plane and the surface
+(GeometricObject).
+
+<ul>
+  <li> Union
+    <ul>
+        <li> Intersection
+               <ul>
+                 <li> Plane 
+                 <li> GeometricObject
+               </ul>
+        <li> VolumeColouring
+        <ul>
+            <li> Intersection
+                   <ul>
+                     <li> Plane 
+                     <li> Volume
+                   </ul>
+        </ul>
+    </ul>
+</ul>
+
+<!--------------------------------------------------------------------->
+
+<hr>
+<h2><a name="Ex4">Example 4: Colour-Coded Slice of Pet on top of MRI
+</a></h2>
+
+<p>
+<img src="Images/example4.gif">
+</p>
+
+<pre>
+#!/usr/local/bin/perl5 -w
+
+    use ILT::LayoutInclude;
+    use ILT::LayoutUtils;
+
+    $layout = new_grid ILT::ImageLayout ( 1, 1 );
+
+    $plane_object = ILT::PlaneObject->new_canonical( Sagittal_axis, -10 );
+    $view = ILT::View->new_canonical( Left_view );
+    $mri_volume = ILT::VolumeObject->new( "Data/volume1.mnc" );
+    $pet_volume = ILT::VolumeObject->new(
+           "/avgbrain/brain/images/mni_demo_fdg_normal_pet_tal.mnc.gz" );
+    $slice_object = ILT::IntersectionObject->new( $plane_object,
+                                             $mri_volume ),
+
+
+    $coloured_mri = ILT::ColourObject->new_volume_colouring( $slice_object,
+                           $mri_volume, Gray_scale, 50, 150 );
+
+    $scene_object = ILT::ColourObject->new_volume_colouring( $coloured_mri,
+                                      $pet_volume, Spectral_scale,
+                                      400, 500 );
+    $scene_object->under_colour( "transparent" );
+    $scene_object->opacity( .5 );
+
+    $image_info = new ILT::ImageInfo ( $scene_object, $view );
+    $layout->image_info( 0, $image_info );
+
+    $layout->generate_image( "Images/example4.gif", 200, 0 );
+</pre>
+
+<h3> Geometry Structure </h3>
+
+The structure is a volume colouring of a volume colouring of a slice
+(an intersection of a plane and a volume).
+
+<ul>
+  <li> VolumeColouring
+    <ul>
+      <li> VolumeColouring
+        <ul>
+           <li> Intersection
+                <ul>
+                  <li> Plane 
+                  <li> Volume
+                </ul>
+        </ul>
+    </ul>
+</ul>
+
+<!--------------------------------------------------------------------->
+
+<hr>
+<h2><a name="ProgRef">Programmers' Reference </a></h2>
+
+<h3> Basics </h3>
+
+Colours are specified by strings, such as "red", "green", "dim_gray".
+
+<h3> ImageLayout </h3>
+
+The following methods are defined on the ILT::ImageLayout object:
+
+<b><pre>
+new_grid  ILT::ImageLayout ( $n_rows, $n_cols )
+</pre></b>
+
+Creates a layout grid of $n_rows by $n_cols images.
+
+<b><pre>
+image_info( $image_index, $image_info_object )
+</pre></b>
+
+With the optional second argument, sets the ImageInfo object for the given
+$image_index.  Without the second argument, returns the current
+value.  The value of
+$image_index can range from 0 to $n_rows * $n_cols - 1.  For
+convenience, the computation of the image index is performed by:
+
+<b><pre>
+row_col_to_index( $row, $col )
+</pre></b>
+
+Returns an image_index, based on the $row, $col, and the grid size of
+the ImageLayout.
+
+<b><pre>
+horizontal_white_space( $n_pixels )
+</pre></b>
+
+When called with an argument, sets the number of desired number of
+empty pixels horizontally between images.  With or without an argument, returns the
+current value.  Defaults to 0.
+
+<b><pre>
+vertical_white_space( $n_pixels )
+</pre></b>
+
+When called with an argument, sets the number of desired number of
+empty pixels vertically between images.  With or without an argument, returns the
+current value.  Defaults to 0.
+
+<b><pre>
+white_space_colour( $colour_string )
+</pre></b>
+
+When called with an argument, sets the colour of background pixels
+images.  With or without an argument, returns the
+current value.  Defaults to "black".
+
+<b><pre>
+generate_image( $filename, $x_size, $y_size )
+</pre></b>
+
+Creates an final image, by rendering each of the sub-images and
+assembling them into an image of size $x_size by $y_size.  If the
+aspect does not match, then either horizonal or vertical white space
+is added.  If either $x_size or $y_size is 0, then an appropriate
+value will be used to match the aspect perfectly, with no extra white
+space.  The filename must end in an extension which identifies the
+desired image type, for instance, <b>.rgb</b>, <b>.gif</b>, or
+<b>.tif</b>.
+
+<h3> ImageInfo </h3>
+
+<b><pre>
+new ILT::ImageInfo( $scene_object, $view )
+</pre></b>
+
+Creates an ImageInfo object which has a reference to a scene_object
+and a view.  The ImageInfo object contains all the information needed
+to render an image of the scene. 
+
+<b><pre>
+scene_object( $scene_object )
+</pre></b>
+
+When called with an argument, sets the scene_object for the ImageInfo
+object.  With or without an argument, returns the
+current value.
+
+</body>
+</html>
