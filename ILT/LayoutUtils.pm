@@ -19,7 +19,7 @@
         @EXPORT_OK      = ();
         @EXPORT         = qw(
                           &end_args
-                          &arg_int &arg_real &arg_enum &arg_object
+                          &arg_any &arg_int &arg_real &arg_enum &arg_object
                           &arg_array_of_ints
                           &arg_array_of_reals
                           &arg_array &arg_string
@@ -136,6 +136,9 @@ sub  arg_enum( $$ )
 {
     my( $value, $n_enum ) = @_;
 
+    if( !defined($value) )
+        { fatal_error( "Expected an argument, but got <undef>\n" ); }
+
     if( !is_scalar( $value ) || $value < 0 || $value >= $n_enum ||
         !is_int( $value ) )
     {
@@ -148,6 +151,9 @@ sub  arg_enum( $$ )
 sub  arg_int( $@ )
 {
     my( $value, $min_value, $max_value ) = @_;
+
+    if( !defined($value) )
+        { fatal_error( "Expected an argument, but got <undef>\n" ); }
 
     if( !is_scalar( $value ) || !is_int($value) )
         { fatal_error( "Expected an integer, but got <$value>\n" ); }
@@ -173,6 +179,9 @@ sub  arg_real( $@ )
 {
     my( $value, $min_value, $max_value ) = @_;
 
+    if( !defined($value) )
+        { fatal_error( "Expected an argument, but got <undef>\n" ); }
+
     if( !is_scalar($value) || !is_numeric($value) )
         { fatal_error( "Expected a real, but got a non-scalar <$value>\n" ); }
 
@@ -192,9 +201,22 @@ sub  arg_real( $@ )
     return( $value );
 }
 
+sub  arg_any( $ )
+{
+    my( $value ) = @_;
+
+    if( !defined($value) )
+        { fatal_error( "Expected an argument, but got <undef>\n" ); }
+
+    return( $value );
+}
+
 sub  arg_string( $ )
 {
     my( $value ) = @_;
+
+    if( !defined($value) )
+        { fatal_error( "Expected an argument, but got <undef>\n" ); }
 
     if( !is_scalar($value) )
         { fatal_error( "Expected a string, but got a non-scalar <$value>\n" ); }

@@ -53,7 +53,7 @@ my( $this_class ) = "ILT::ImageLayout";
 
 sub new( $ )
 {
-    my( $proto )  = shift;
+    my( $proto )  = arg_any( shift );
     end_args( @_ );
 
     my $class = ref($proto) || $proto;
@@ -89,7 +89,7 @@ sub new( $ )
 
 sub new_grid( $$$ )
 {
-    my( $proto )  = shift;
+    my( $proto )  = arg_any( shift );
     my( $n_rows ) = arg_int( shift, 1, 1e30 );
     my( $n_cols ) = arg_int( shift, 1, 1e30 );
     end_args( @_ );
@@ -339,7 +339,7 @@ sub image_info( $$@ )
 }
 
 #----------------------------- MNI Header -----------------------------------
-#@NAME       : compute_geometry
+#@NAME       : compute_image_sizes_and_positions
 #@INPUT      : self
 #              full_x_size     : final image size
 #              full_y_size
@@ -358,11 +358,11 @@ sub image_info( $$@ )
 #@MODIFIED   : 
 #----------------------------------------------------------------------------
 
-sub   compute_geometry( $$$$$$$ )
+sub   compute_image_sizes_and_positions( $$$$$$$ )
 {
     my( $self       )    = arg_object( shift, $this_class );
-    my( $full_x_size )   = arg_int( shift, 1, 1e30 );
-    my( $full_y_size )   = arg_int( shift, 1, 1e30 );
+    my( $full_x_size )   = arg_int( shift, 0, 1e30 );
+    my( $full_y_size )   = arg_int( shift, 0, 1e30 );
     my( $x_pos )         = arg_array_ref( shift );
     my( $y_pos )         = arg_array_ref( shift );
     my( $x_sizes )       = arg_array_ref( shift );
@@ -381,8 +381,6 @@ sub   compute_geometry( $$$$$$$ )
         $vert_white_space = $self->vertical_white_space();
         $n_rows = $self->n_rows();
         $n_cols = $self->n_cols();
-        $x_size = $full_x_size - ($n_cols - 1) * $hor_white_space;
-        $y_size = $full_y_size - ($n_rows - 1) * $vert_white_space;
 
         #-----------------------------------------------------------------------
         # compute the maximum world height of an image for each row and the
@@ -438,17 +436,36 @@ sub   compute_geometry( $$$$$$$ )
         # coordinates can be computed
         #----------------------------------------------------------------------
 
-        $x_scale = $x_size / $total_width;
-        $y_scale = $y_size / $total_height;
-
-        #----------------------------------------------------------------------
-        # due to aspect differences, choose the smaller scale
-        #----------------------------------------------------------------------
-
-        if( $x_scale < $y_scale )
-            { $scale = $x_scale; }
+        if( $full_x_size < 1 )   #--- no x size specified
+        {
+            $y_size = $full_y_size - ($n_rows - 1) * $vert_white_space;
+            $scale = $y_size / $total_height;
+            $full_x_size = int( $scale * $total_width + 0.5 ) + 
+                           ($n_cols - 1) * $hor_white_space;
+        }
+        elsif( $full_y_size < 1 )
+        {
+            $x_size = $full_x_size - ($n_cols - 1) * $hor_white_space;
+            $scale = $x_size / $total_width;
+            $full_y_size = int( $scale * $total_height + 0.5 ) + 
+                           ($n_rows - 1) * $vert_white_space;
+        }
         else
-            { $scale = $y_scale; }
+        {
+            $x_size = $full_x_size - ($n_cols - 1) * $hor_white_space;
+            $y_size = $full_y_size - ($n_rows - 1) * $vert_white_space;
+            $x_scale = $x_size / $total_width;
+            $y_scale = $y_size / $total_height;
+
+            #-----------------------------------------------------------------
+            # due to aspect differences, choose the smaller scale
+            #-----------------------------------------------------------------
+
+            if( $x_scale < $y_scale )
+                { $scale = $x_scale; }
+            else
+                { $scale = $y_scale; }
+        }
 
         #----------------------------------------------------------------------
         # Depending on the aspect, one of these offsets will be 0 and the
@@ -525,21 +542,27 @@ sub   compute_geometry( $$$$$$$ )
     }
     else
     {
-        fatal_error( "compute_geometry():  not implemented yet\n" );
+        fatal_error( "compute_image_sizes_and_positions():  " .
+                     " not implemented yet\n" );
     }
+
+    return( $full_x_size, $full_y_size );
 }
 
 #----------------------------- MNI Header -----------------------------------
 #@NAME       : generate_image
 #@INPUT      : self
 #              filename
-#              full_x_size
-#              full_y_size
+#              full_x_size    :  one of these is allowed to be 0
+#              full_y_size    : 
 #@OUTPUT     : 
 #@RETURNS    : void
 #@DESCRIPTION: Positions, renders, and assembles the montage of sub-images
 #              into an image of size full_x_size by full_y_size, storing the
-#              result in the file specified by filename.
+#              result in the file specified by filename.  If either
+#              full_x_size or full_y_size is 0, then it will
+#              be automatically assigned based on the computed aspect ratio
+#              and the other full_*_size specified.
 #@METHOD     : 
 #@GLOBALS    : 
 #@CALLS      :  
@@ -552,7 +575,7 @@ sub generate_image
     my( $self     )    = arg_object( shift, $this_class );
     my( $filename )    = arg_string( shift );
     my( $full_x_size ) = arg_int( shift, 0, 1e30 );
-    my( $full_y_size ) = arg_int( shift, 0, 1e30 );
+    my( $full_y_size ) = arg_int( shift, (($full_x_size < 1) ? 1 : 0), 1e30 );
     end_args( @_ );
 
     my( $image_index, @x_pos, @y_pos, @x_size, @y_size,
@@ -575,7 +598,8 @@ sub generate_image
     # assign the sizes and positions of the sub-images within the montage
     #-------------------------------------------------------------------------
 
-    $self->compute_geometry( $full_x_size, $full_y_size,
+    ($full_x_size, $full_y_size ) = $self->compute_image_sizes_and_positions(
+                             $full_x_size, $full_y_size,
                              \@x_pos, \@y_pos, \@x_size, \@y_size );
 
     #-------------------------------------------------------------------------

@@ -1,67 +1,181 @@
 #!/usr/local/bin/perl5 -w
 
-    package  PlaneObject;
+# ----------------------------------------------------------------------------
+#@COPYRIGHT  :
+#              Copyright 1993,1994,1995,1996,1997,1998 David MacDonald,
+#              McConnell Brain Imaging Centre,
+#              Montreal Neurological Institute, McGill University.
+#              Permission to use, copy, modify, and distribute this
+#              software and its documentation for any purpose and without
+#              fee is hereby granted, provided that the above copyright
+#              notice appear in all copies.  The author and McGill University
+#              make no representations about the suitability of this
+#              software for any purpose.  It is provided "as is" without
+#              express or implied warranty.
+#-----------------------------------------------------------------------------
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : ILT::PlaneObject
+#@INPUT      : 
+#@OUTPUT     : 
+#@RETURNS    : 
+#@DESCRIPTION: Object class to represent an infinite 3D plane.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
+    package  ILT::PlaneObject;
 
     use      strict;
     use      vars  qw(@ISA);
-    use      LayoutInclude;
-    @ISA =   ( "SceneObject" );
+    use      ILT::LayoutInclude;
+    use      ILT::LayoutUtils;
+    @ISA =   ( "ILT::SceneObject" );
 
-sub new
+#--------------------------------------------------------------------------
+# define the name of the package
+#--------------------------------------------------------------------------
+
+my( $this_class ) = "ILT::PlaneObject";
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : new
+#@INPUT      : prototype
+#              x_origin
+#              y_origin
+#              z_origin
+#              x_normal
+#              y_normal
+#              z_normal
+#@OUTPUT     : 
+#@RETURNS    : instance of PlaneObject
+#@DESCRIPTION: Creates a new plane, with the given origin and orientation.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
+sub new( $$$$$$$ )
 {
-    my( $proto, $plane_axis, $plane_position ) = @_;
+    my( $proto ) = arg_any( shift );
+    my( $x_normal ) = arg_real( shift );
+    my( $y_normal ) = arg_real( shift );
+    my( $z_normal ) = arg_real( shift );
+    my( $x_origin ) = arg_real( shift );
+    my( $y_origin ) = arg_real( shift );
+    my( $z_origin ) = arg_real( shift );
+    end_args( @_ );
 
     my $class = ref($proto) || $proto;
     my $self  = {};
 
-    if( defined($plane_axis) && $plane_axis eq "x" )
-    {
-        $self->{PLANE_NORMAL} = [ 1, 0, 0 ];
-        $self->{PLANE_POSITION} = [ $plane_position, 0, 0 ];
-    }
-    elsif( defined($plane_axis) && $plane_axis eq "y" )
-    {
-        $self->{PLANE_NORMAL} = [ 0, 1, 0 ];
-        $self->{PLANE_POSITION} = [ 0, $plane_position, 0 ];
-    }
-    elsif( defined($plane_axis) && $plane_axis eq "z" )
-    {
-        $self->{PLANE_NORMAL} = [ 0, 0, 1 ];
-        $self->{PLANE_POSITION} = [ 0, 0, $plane_position ];
-    }
-    else
-    {
-        die( "Error in creating plane\n" );
-    }
-
-    $self->{TEMP_GEOMETRY_FILE} = undef;
-
     bless ($self, $class);
+
+    $self->plane_origin( $x_origin, $y_origin, $z_origin );
+    $self->plane_normal( $x_normal, $y_normal, $z_normal );
+
     return $self;
 }
 
-sub plane_normal
-{
-    my( $self, $normal ) = @_;
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : new_canonical
+#@INPUT      : self
+#              axis               : enum of axis orientation
+#              plane_origin       : origin of plane
+#@OUTPUT     : 
+#@RETURNS    : instance of plane
+#@DESCRIPTION: Creates a plane object oriented along the x, y, or z axis.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
 
-    if( defined($normal) )
+sub new_canonical( $$$ )
+{
+    my( $proto )           = arg_any( shift );
+    my( $axis )            = arg_enum( shift, N_axis_enums );
+    my( $plane_origin )    = arg_real( shift );
+    end_args( @_ );
+ 
+    my( $self );
+
+    if( $axis == Sagittal_axis )
     {
-        $self->{PLANE_NORMAL} = @$normal;
+        $self = new ILT::PlaneObject( 1, 0, 0, $plane_origin, 0, 0 );
     }
+    elsif( $axis == Coronal_axis )
+    {
+        $self = new ILT::PlaneObject( 0, 1, 0, 0, $plane_origin, 0 );
+    }
+    elsif( $axis == Transverse_axis )
+    {
+        $self = new ILT::PlaneObject( 0, 0, 1, 0, 0, $plane_origin );
+    }
+
+    return( $self );
+}
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : plane_normal
+#@INPUT      : self
+#              normal       : OPTIONAL array of 3 reals
+#@OUTPUT     : 
+#@RETURNS    : 3 reals
+#@DESCRIPTION: Gets and optionally sets (if normal arg present) the normal
+#              of the plane
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
+sub plane_normal( $@ )
+{
+    my( $self ) = arg_object( shift, $this_class );
+    my( @normal ) = opt_arg_array_of_reals( \@_, 3 );
+    end_args( @_ );
+
+    if( @normal )
+        { $self->{PLANE_NORMAL} = [ @normal ]; }
 
     return( @{$self->{PLANE_NORMAL}} );
 }
 
-sub plane_position
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : plane_origin
+#@INPUT      : self
+#              origin       : OPTIONAL array of 3 reals
+#@OUTPUT     : 
+#@RETURNS    : 3 reals
+#@DESCRIPTION: Gets and optionally sets (if origin arg present) the origin
+#              of the plane
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
+sub plane_origin( $@ )
 {
-    my( $self, $position ) = @_;
+    my( $self ) = arg_object( shift, $this_class );
+    my( @origin ) = opt_arg_array_of_reals( \@_, 3 );
+    end_args( @_ );
 
-    if( defined($position) )
-    {
-        $self->{PLANE_POSITION} = @$position;
-    }
+    if( @origin )
+        { $self->{PLANE_ORIGIN} = [ @origin ]; }
 
-    return( @{$self->{PLANE_POSITION}} );
+    return( @{$self->{PLANE_ORIGIN}} );
 }
+
+#--------------------------------------------------------------------------
 
 1;

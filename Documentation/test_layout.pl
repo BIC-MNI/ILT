@@ -175,14 +175,13 @@
             $layout->image_info( $layout->row_col_to_index($row,$col),
                                  $image_info );
         }
-last;
     }
 
     #-----------------------------------------------------------------
     #   Render the images and create the output file
     #-----------------------------------------------------------------
 
-    $layout->generate_image( "output.rgb", 1000, 900 );
+    $layout->generate_image( "output.rgb", 1100, 0 );
 
 #-----------------------------------------------------------------
 #   Define the view based on some scene object other than that being

@@ -1,5 +1,19 @@
 #!/usr/local/bin/perl5 -w
 
+# ----------------------------------------------------------------------------
+#@COPYRIGHT  :
+#              Copyright 1993,1994,1995,1996,1997,1998 David MacDonald,
+#              McConnell Brain Imaging Centre,
+#              Montreal Neurological Institute, McGill University.
+#              Permission to use, copy, modify, and distribute this
+#              software and its documentation for any purpose and without
+#              fee is hereby granted, provided that the above copyright
+#              notice appear in all copies.  The author and McGill University
+#              make no representations about the suitability of this
+#              software for any purpose.  It is provided "as is" without
+#              express or implied warranty.
+#-----------------------------------------------------------------------------
+
 #----------------------------- MNI Header -----------------------------------
 #@NAME       : ColourObject
 #@INPUT      : 
@@ -20,15 +34,38 @@
     use      vars  qw(@ISA);
     use      ILT::LayoutInclude;
     use      ILT::LayoutUtils;
-    @ISA =   ( "ILT::SceneObject" );
+    use      ILT::SceneObject::OneSubObject;
+    @ISA =   ( "ILT::OneSubObject" );
 
-sub new( $ )
+#--------------------------------------------------------------------------
+# define the name of this package
+#--------------------------------------------------------------------------
+
+my( $this_class ) = "ILT::ColourObject";
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : new
+#@INPUT      : prototype
+#              sub_object
+#@OUTPUT     : 
+#@RETURNS    : ColourObject instance
+#@DESCRIPTION: Creates an instance of a ColourObject.  At present, this
+#              constructor is not called directly.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
+sub new( $$ )
 {
-    my( $proto ) = arg_string( shift );
+    my( $proto )       = arg_string( shift );
+    my( $sub_object )  = arg_object( shift, "ILT::SceneObject" );
     end_args( @_ );
 
     my $class = ref($proto) || $proto;
-    my $self  = {};
+    my $self  = $class->SUPER::new( $sub_object );
 
     bless ($self, $class);
 
@@ -54,7 +91,7 @@ sub new( $ )
 
 sub new_volume_colouring( $$$$$$ )
 {
-    my( $proto )         = shift;
+    my( $proto )         = arg_any( shift );
     my( $object )        = arg_object( shift, "ILT::SceneObject" );
     my( $volume_object ) = arg_object( shift, "ILT::VolumeObject" );
     my( $method )        = arg_enum( shift, N_colour_coding_enums );
@@ -64,9 +101,8 @@ sub new_volume_colouring( $$$$$$ )
 
     my( $self );
 
-    $self = new ILT::ColourObject;
+    $self = new ILT::ColourObject( $object );
 
-    $self->object_to_colour( $object );
     $self->volume( $volume_object );
     $self->method( $method );
     $self->low_limit( $low_limit );
@@ -78,21 +114,25 @@ sub new_volume_colouring( $$$$$$ )
     return $self;
 }
 
-sub object_to_colour( $@ )
-{
-    my( $self )             =  arg_object( shift, "ILT::ColourObject" );
-    my( $object_to_colour ) =  opt_arg_object( shift, "ILT::SceneObject" );
-    end_args( @_ );
-
-    if( defined($object_to_colour) )
-        { $self->{OBJECT_TO_COLOUR} = $object_to_colour; }
-
-    return( $self->{OBJECT_TO_COLOUR} );
-}
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : volume
+#@INPUT      : self
+#              volume  OPTIONAL
+#@OUTPUT     : 
+#@RETURNS    : volume_object
+#@DESCRIPTION: Sets or gets the value of the volume object associated with
+#              the colouring.  If the optional argument is present, sets the
+#              value.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
 
 sub volume( $@ )
 {
-    my( $self )   =  arg_object( shift, "ILT::ColourObject" );
+    my( $self )   =  arg_object( shift, $this_class );
     my( $volume ) =  opt_arg_object( shift, "ILT::VolumeObject" );
     end_args( @_ );
 
@@ -102,9 +142,25 @@ sub volume( $@ )
     return( $self->{VOLUME} );
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : method
+#@INPUT      : self
+#              method  OPTIONAL
+#@OUTPUT     : 
+#@RETURNS    : method  (e.g., Gray_scale, Hot_metal_scale, etc.)
+#@DESCRIPTION: Sets or gets the value of the method associated with
+#              the colouring.  If the optional argument is present, sets the
+#              value.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub method( $@ )
 {
-    my( $self )   =  arg_object( shift, "ILT::ColourObject" );
+    my( $self )   =  arg_object( shift, $this_class );
     my( $method ) =  opt_arg_enum( shift, N_colour_coding_enums );
     end_args( @_ );
 
@@ -114,9 +170,25 @@ sub method( $@ )
     return( $self->{METHOD} );
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : low_limit
+#@INPUT      : self
+#              low_limit  OPTIONAL
+#@OUTPUT     : 
+#@RETURNS    : value of low_limit
+#@DESCRIPTION: Sets or gets the value of the colour coding low limit
+#              associated with the colouring.  If the optional argument is
+#              present, sets the value.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub low_limit( $@ )
 {
-    my( $self )      =  arg_object( shift, "ILT::ColourObject" );
+    my( $self )      =  arg_object( shift, $this_class );
     my( $low_limit ) =  opt_arg_real( shift );
     end_args( @_ );
 
@@ -126,9 +198,25 @@ sub low_limit( $@ )
     return( $self->{LOW_LIMIT} );
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : high_limit
+#@INPUT      : self
+#              high_limit  OPTIONAL
+#@OUTPUT     : 
+#@RETURNS    : value of high_limit
+#@DESCRIPTION: Sets or gets the value of the colour coding high limit
+#              associated with the colouring.  If the optional argument is
+#              present, sets the value.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub high_limit( $@ )
 {
-    my( $self )      =  arg_object( shift, "ILT::ColourObject" );
+    my( $self )      =  arg_object( shift, $this_class );
     my( $high_limit ) =  opt_arg_real( shift );
     end_args( @_ );
 
@@ -138,9 +226,25 @@ sub high_limit( $@ )
     return( $self->{HIGH_LIMIT} );
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : over_colour
+#@INPUT      : self
+#              over_colour  OPTIONAL
+#@OUTPUT     : 
+#@RETURNS    : value of over_colour
+#@DESCRIPTION: Sets or gets the value of the colour coding over_colour
+#              associated with the colouring.  If the optional argument is
+#              present, sets the value.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub over_colour( $@ )
 {
-    my( $self )        =  arg_object( shift, "ILT::ColourObject" );
+    my( $self )        =  arg_object( shift, $this_class );
     my( $over_colour ) =  opt_arg_string( shift );
     end_args( @_ );
 
@@ -150,9 +254,25 @@ sub over_colour( $@ )
     return( $self->{OVER_COLOUR} );
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : under_colour
+#@INPUT      : self
+#              under_colour  OPTIONAL
+#@OUTPUT     : 
+#@RETURNS    : value of under_colour
+#@DESCRIPTION: Sets or gets the value of the colour coding under_colour
+#              associated with the colouring.  If the optional argument is
+#              present, sets the value.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub under_colour( $@ )
 {
-    my( $self )        =  arg_object( shift, "ILT::ColourObject" );
+    my( $self )        =  arg_object( shift, $this_class );
     my( $under_colour ) =  opt_arg_string( shift );
     end_args( @_ );
 
@@ -162,9 +282,25 @@ sub under_colour( $@ )
     return( $self->{UNDER_COLOUR} );
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : opacity
+#@INPUT      : self
+#              opacity  OPTIONAL
+#@OUTPUT     : 
+#@RETURNS    : value of opacity
+#@DESCRIPTION: Sets or gets the value of the colour coding opacity 
+#              associated with the colouring.  If the optional argument is
+#              present, sets the value.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub opacity( $@ )
 {
-    my( $self )    =  arg_object( shift, "ILT::ColourObject" );
+    my( $self )    =  arg_object( shift, $this_class );
     my( $opacity ) =  opt_arg_real( shift, 0, 1 );
     end_args( @_ );
 
@@ -174,9 +310,33 @@ sub opacity( $@ )
     return( $self->{OPACITY} );
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : usercc_filename
+#@INPUT      : self
+#              usercc_filename  OPTIONAL
+#@OUTPUT     : 
+#@RETURNS    : filename
+#@DESCRIPTION: Sets or gets the value of the user defined colour coding
+#              filename.  When the method is Usercc_scale, the file is
+#              read.  The file is an ascii file with a piecewise linear
+#              function mapping values to colour, eg.
+#                     10   black
+#                     20   green
+#                     30   1 0 0
+#              Note that the first and last values in the file are mapped
+#              to the low and high limits, and therefore, in most cases,
+#              you should set the low and high limits to the first and
+#              last values in the file.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub usercc_filename( $@ )
 {
-    my( $self )            =  arg_object( shift, "ILT::ColourObject" );
+    my( $self )            =  arg_object( shift, $this_class );
     my( $usercc_filename ) =  opt_arg_string( shift );
     end_args( @_ );
 
@@ -186,12 +346,29 @@ sub usercc_filename( $@ )
     return( $self->{USERCC_FILENAME} );
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : make_ray_trace_args
+#@INPUT      : self
+#@OUTPUT     : 
+#@RETURNS    : string
+#@DESCRIPTION: Creates a string of arguments to be passed to ray trace
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub make_ray_trace_args( $ )
 {
-    my( $self )          =  arg_object( shift, "ILT::ColourObject" );
+    my( $self )          =  arg_object( shift, $this_class );
     end_args( @_ );
 
     my( $args, $method_name, $continuity, $object_args, $full_args );
+
+    #--------------------------------------------------------------------------
+    # Convert the enum method to a ray_trace argument string
+    #--------------------------------------------------------------------------
 
     if( $self->method() == Gray_scale )
         { $method_name = "-gray"; }
@@ -212,12 +389,20 @@ sub make_ray_trace_args( $ )
     else
         { fatal_error( "Incorrect method type in colour object\n" ); }
 
+    #--------------------------------------------------------------------------
+    # Convert the volume interpolation method to a ray_trace continuity integer
+    #--------------------------------------------------------------------------
+
     if( $self->volume()->interpolation() == Nearest_neighbour_interpolation )
         { $continuity = -1; }
     elsif( $self->volume()->interpolation() == Linear_interpolation )
         { $continuity = 0; }
     elsif( $self->volume()->interpolation() == Cubic_interpolation )
         { $continuity = 2; }
+
+    #--------------------------------------------------------------------------
+    # Assemble the colour coding arguments to ray_trace
+    #--------------------------------------------------------------------------
 
     $args = sprintf( "-under %s -over %s %s %g %g %s %d %g",
                      $self->under_colour(),
@@ -227,53 +412,22 @@ sub make_ray_trace_args( $ )
                      $self->volume()->filename(),
                      $continuity, $self->opacity() );
 
-    $object_args = $self->object_to_colour()->make_ray_trace_args();
+    #--------------------------------------------------------------------------
+    # Get the ray_trace arguments of the sub object
+    #--------------------------------------------------------------------------
+
+    $object_args  = $self->SUPER::make_ray_trace_args();
+
+    #--------------------------------------------------------------------------
+    # Finally, assemble the colour coding arguments, the sub object arguments,
+    # and a delete volume (so subsequent objects are not colour coded).
+    #--------------------------------------------------------------------------
 
     $full_args = "-reverse_order_colouring $args $object_args -delete_volume 0";
 
     return( $full_args );
 }
 
-sub  get_plane_intersection( $$$$ )
-{
-    my( $self )              =  arg_object( shift, "ILT::ColourObject" );
-    my( $plane_origin_ref )  =  arg_array_ref( shift, 3 );
-    my( $plane_normal_ref )  =  arg_array_ref( shift, 3 );
-    my( $output_file )       =  arg_string( shift );
-    end_args( @_ );
-
-    $self->object_to_colour()->get_plane_intersection(
-                                 $plane_origin_ref,
-                                 $plane_normal_ref, $output_file );
-}
-
-sub compute_bounding_view( $$$$ )
-{
-    my( $self )                =  arg_object( shift, "ILT::ColourObject" );
-    my( $view_direction_ref )  =  arg_array_ref( shift, 3 );
-    my( $up_direction_ref )    =  arg_array_ref( shift, 3 );
-    my( $transform )           =  arg_string( shift );
-    end_args( @_ );
-
-    return( $self->object_to_colour()->compute_bounding_view(
-                                            $view_direction_ref,
-                                            $up_direction_ref, $transform ) );
-}
-
-sub  create_temp_geometry_file( $ )
-{
-    my( $self )   =  arg_object( shift, "ILT::ColourObject" );
-    end_args( @_ );
-
-    $self->object_to_colour()->create_temp_geometry_file();
-}
-
-sub  delete_temp_geometry_file( $ )
-{
-    my( $self )   =  arg_object( shift, "ILT::ColourObject" );
-    end_args( @_ );
-
-    $self->object_to_colour()->delete_temp_geometry_file();
-}
+#--------------------------------------------------------------------------
 
 1;

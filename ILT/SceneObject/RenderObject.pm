@@ -1,5 +1,32 @@
 #!/usr/local/bin/perl5 -w
 
+# ----------------------------------------------------------------------------
+#@COPYRIGHT  :
+#              Copyright 1993,1994,1995,1996,1997,1998 David MacDonald,
+#              McConnell Brain Imaging Centre,
+#              Montreal Neurological Institute, McGill University.
+#              Permission to use, copy, modify, and distribute this
+#              software and its documentation for any purpose and without
+#              fee is hereby granted, provided that the above copyright
+#              notice appear in all copies.  The author and McGill University
+#              make no representations about the suitability of this
+#              software for any purpose.  It is provided "as is" without
+#              express or implied warranty.
+#-----------------------------------------------------------------------------
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : ILT::RenderObject
+#@INPUT      : 
+#@OUTPUT     : 
+#@RETURNS    : 
+#@DESCRIPTION: Object class to represent render parameters.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
     package  ILT::RenderObject;
 
     use      strict;
@@ -9,11 +36,29 @@
     use      ILT::SceneObject::OneSubObject;
     @ISA =   ( "ILT::OneSubObject" );
 
+#--------------------------------------------------------------------------
+# define the name of this class
+#--------------------------------------------------------------------------
+
 my( $this_class ) = "ILT::RenderObject";
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : new
+#@INPUT      : self
+#              sub-object
+#@OUTPUT     : 
+#@RETURNS    : instance of a render object
+#@DESCRIPTION: Constructs a render object, given another object
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
 
 sub new( $$ )
 {
-    my( $proto )      = shift;
+    my( $proto )      = arg_any( shift );
     my( $sub_object ) = arg_object( shift, "ILT::SceneObject" );
     end_args( @_ );
 
@@ -24,6 +69,21 @@ sub new( $$ )
 
     return $self;
 }
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : line_width
+#@INPUT      : self
+#              line_width  (OPTIONAL)
+#@OUTPUT     : 
+#@RETURNS    : line_width
+#@DESCRIPTION: Gets and optionally sets (if optional argument is present) the
+#              value of this parameter.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
 
 sub line_width( $@ )
 {
@@ -37,6 +97,21 @@ sub line_width( $@ )
     return( $self->{LINE_WIDTH} );
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : lighting_state
+#@INPUT      : self
+#              lighting_state  (OPTIONAL)
+#@OUTPUT     : 
+#@RETURNS    : lighting_state (True or False)
+#@DESCRIPTION: Gets and optionally sets (if optional argument is present) the
+#              value of this parameter.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub lighting_state( $@ )
 {
     my( $self )           = arg_object( shift, $this_class );
@@ -48,6 +123,21 @@ sub lighting_state( $@ )
 
     return( $self->{LIGHTING_STATE} );
 }
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : surface_shading
+#@INPUT      : self
+#              surface_shading  (OPTIONAL)
+#@OUTPUT     : 
+#@RETURNS    : surface_shading (Flat_shading or Smooth_shading)
+#@DESCRIPTION: Gets and optionally sets (if optional argument is present) the
+#              value of this parameter.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
 
 sub surface_shading( $@ )
 {
@@ -61,6 +151,21 @@ sub surface_shading( $@ )
     return( $self->{SURFACE_SHADING} );
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : make_ray_trace_args
+#@INPUT      : self
+#@OUTPUT     : 
+#@RETURNS    : string
+#@DESCRIPTION: Constructs a string to represent the ray_trace arguments 
+#              corresponding to the render parameters, and returns this
+#              string concatenated with the sub-object ray_trace string.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub make_ray_trace_args( $ )
 {
     my( $self )            = arg_object( shift, $this_class );
@@ -68,8 +173,27 @@ sub make_ray_trace_args( $ )
 
     my( $pre_args, $post_args, $args, $object_args, $full_args );
 
+    #--------------------------------------------------------------------------
+    # initialize the arguments to go before and after the sub-objects's
+    #--------------------------------------------------------------------------
+
     $pre_args = "";
     $post_args = "";
+
+    #--------------------------------------------------------------------------
+    # if necessary, add line width arguments
+    #--------------------------------------------------------------------------
+
+    if( defined($self->line_width()) )
+    {
+        $pre_args = $pre_args . sprintf( " -line_width %g",
+                                         $self->line_width() );
+        $post_args = $post_args . " -line_width -1";
+    }
+
+    #--------------------------------------------------------------------------
+    # if necessary, add lighting state arguments
+    #--------------------------------------------------------------------------
 
     if( defined($self->line_width()) )
     {
@@ -92,6 +216,10 @@ sub make_ray_trace_args( $ )
         }
     }
 
+    #--------------------------------------------------------------------------
+    # if necessary, add surface shading arguments
+    #--------------------------------------------------------------------------
+
     if( defined($self->surface_shading()) )
     {
         if( $self->surface_shading() == Linear_interpolation )
@@ -106,7 +234,15 @@ sub make_ray_trace_args( $ )
         }
     }
 
+    #--------------------------------------------------------------------------
+    # get the arguments of the sub-object
+    #--------------------------------------------------------------------------
+
     $object_args  = $self->SUPER::make_ray_trace_args();
+
+    #--------------------------------------------------------------------------
+    # assemble the arguments and return them
+    #--------------------------------------------------------------------------
 
     $full_args = "$pre_args $object_args $post_args" ;
 
