@@ -166,6 +166,7 @@
                ILT::UnionObject->new( $colour_object, $surface_cross_section );
 
             $image_info = ILT::ImageInfo->new( $scene_object, $view[$col] );
+$image_info = ILT::ImageInfo->new( $scene_object, ILT::View->new() );
             $image_info->background_colour( "black" );
 
             #-----------------------------------------------------------------
