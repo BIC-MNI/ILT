@@ -6,6 +6,10 @@
     use      ImageInfo;
     use      View;
     use      Utils;
+    use      SceneObject;
+    use      SceneObject::GeometricObject;
+    use      SceneObject::PlaneObject;
+    use      SceneObject::IntersectionObject;
 
 sub new
 {
@@ -132,7 +136,7 @@ sub  get_image_index_from_arguments
         if( !defined($row) || $row < 0 || $row >= $self->{N_ROWS} ||
             !defined($col) || $col < 0 || $col >= $self->{N_COLS} )
         {
-            die( "get_image_index_from_arguments() argument out of range\n" );
+            clean_up_and_die( "get_image_index_from_arguments() argument out of range\n" );
         }
 
         $image_index = $self->row_col_to_index( $row, $col );
@@ -144,7 +148,7 @@ sub  get_image_index_from_arguments
         if( !defined($image_index) ||
             $image_index < 0 || $image_index >= $self->{N_IMAGES} )
         {
-            die( "get_image_index_from_arguments() argument out of range\n" );
+            clean_up_and_die( "get_image_index_from_arguments() argument out of range\n" );
         }
     }
 
@@ -273,7 +277,7 @@ sub   compute_geometry
     }
     else
     {
-        die( "compute_geometry():  not implemented yet\n" );
+        clean_up_and_die( "compute_geometry():  not implemented yet\n" );
     }
 }
 
@@ -282,11 +286,12 @@ sub generate_image
     my( $self ) = @_;
 
     my( $image_index, @x_pos, @y_pos, @x_size, @y_size, @views,
-        @tmp_image_files, $filename, $white_space_colour, $layout_args );
+        @tmp_image_files, $filename, $white_space_colour, $layout_args,
+        $full_x_size, $full_y_size );
 
     $filename = $self->{OUTPUT_FILENAME};
     if( !defined( $filename ) )
-        { die( "No output filename specified in ImageLayout\n" ); }
+        { clean_up_and_die( "No output filename specified in ImageLayout\n" ); }
 
     for( $image_index = 0;  $image_index < $self->{N_IMAGES};  ++$image_index )
     {
@@ -311,6 +316,8 @@ sub generate_image
                     $y_size[$image_index],
                     $views[$image_index] );
 
+        $self->{IMAGES}[$image_index]->scene_object()->delete_tmp_files();
+
         $layout_args = $layout_args . " " . $tmp_image_files[$image_index] .
                        " " . $x_pos[$image_index] .
                        " " . $y_pos[$image_index];
@@ -318,7 +325,11 @@ sub generate_image
 
     $white_space_colour = $self->{WHITE_SPACE_COLOUR};
 
-    system_call( "place_images $filename $white_space_colour $layout_args" );
+    $full_x_size = $self->{X_SIZE};
+    $full_y_size = $self->{Y_SIZE};
+
+    system_call( "place_images $filename $white_space_colour " .
+                 " -size $full_x_size $full_y_size $layout_args" );
 
     delete_tmp_files( @tmp_image_files );
 }
