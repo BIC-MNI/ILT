@@ -55,6 +55,8 @@
                         );
     }
 
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/LayoutUtils.pm,v 1.6 1998-05-22 14:44:35 david Exp $';
+
 #---------------
 
 sub ILT_version()

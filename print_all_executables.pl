@@ -17,7 +17,7 @@
     use  strict;
     use  ILT::Executables;
 
-    my( $rcsid ) = "$Header: /private-cvsroot/libraries/ILT/print_all_executables.pl,v 1.2 1998-05-22 14:38:05 david Exp $";
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/print_all_executables.pl,v 1.3 1998-05-22 14:44:28 david Exp $';
 
     my( @execs, $exec, $actual_path );
 

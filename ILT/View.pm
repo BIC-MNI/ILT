@@ -32,6 +32,8 @@
     use      ILT::LayoutUtils;
     use      ILT::ProgUtils;
 
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/View.pm,v 1.4 1998-05-22 14:44:35 david Exp $';
+
 #--------------------------------------------------------------------------
 # define the class name
 #--------------------------------------------------------------------------

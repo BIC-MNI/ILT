@@ -40,6 +40,8 @@
                         );
     }
 
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/ProgUtils.pm,v 1.2 1998-05-22 14:44:35 david Exp $';
+
 #---------------------------  error function
 
 sub  error( @ )

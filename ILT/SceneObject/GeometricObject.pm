@@ -38,6 +38,8 @@
     use      ILT::ProgUtils;
     @ISA = ( "ILT::SceneObject" );
 
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/GeometricObject.pm,v 1.6 1998-05-22 14:44:45 david Exp $';
+
 #--------------------------------------------------------------------------
 # define the name of this class
 #--------------------------------------------------------------------------

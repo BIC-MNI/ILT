@@ -36,6 +36,8 @@
     use      ILT::Executables;
     use      ILT::LayoutInclude;
 
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/ImageLayout.pm,v 1.10 1998-05-22 14:44:35 david Exp $';
+
 #--- Define the name of this class
 
 my( $this_class ) = "ILT::ImageLayout";
