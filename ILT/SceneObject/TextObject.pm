@@ -37,7 +37,7 @@
     use      ILT::ProgUtils;
     @ISA = ( "ILT::SceneObject" );
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/TextObject.pm,v 1.3 1998-09-18 13:30:01 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/TextObject.pm,v 1.4 2001-09-24 21:03:45 neelin Exp $';
 
 #--------------------------------------------------------------------------
 # define the name of this class
@@ -286,7 +286,7 @@ sub _get_args( $$$ )
     $x = int( $xv + 0.5 );
     $y = int( $yv + 0.5 );
 
-    $args = "-font $font -pen $colour -geometry +${x}+${y} -annotate \"$string\"";
+    $args = "-font $font -pen $colour -draw 'text +${x},-${y} \"$string'";
 
     return( $args );
 }
@@ -335,8 +335,8 @@ sub  _determine_width_and_height( $ )
     run_executable( "ray_trace", " -bg $bg_colour -size $test_x_size $test_y_size -output $tmp_file" );
 
     $font = $self->font();
-    $args = "-font $font -pen black -geometry " .
-            " +${test_x_offset}-${test_y_offset} -annotate \"$string\"" .
+    $args = "-font $font -pen black -draw 'text " .
+            " +${test_x_offset},-${test_y_offset} \"$string'" .
             " $tmp_file ";
     run_executable( "mogrify", $args );
 
@@ -556,7 +556,7 @@ sub get_text_image_magick_args( $$$ )
     if( $x < 0 )  { $x = 0; }
     if( $y < 0 )  { $y = 0; }
 
-    $args = "-font $font -pen $colour -geometry +${x}-${y} -annotate \"$string\"";
+    $args = "-font $font -pen $colour -draw 'text +${x},-${y} \"$string'";
 
     return( $args );
 }
