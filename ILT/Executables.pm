@@ -20,7 +20,7 @@
                               &get_executable_list );
     }
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/Executables.pm,v 1.3 1998-05-22 14:44:35 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/Executables.pm,v 1.4 1998-08-05 13:56:32 david Exp $';
 
 #--------------------------------------------------------------------------
 #  Define all the executables or shell commands used by the library
@@ -39,6 +39,7 @@ my( %executables ) =
     xfmconcat               => "xfmconcat",          #--- /usr/local/mni/bin
 
     convert                 => "convert",            #--- in path
+    mogrify                 => "mogrify",
 
     cp                      => "/bin/cp",            #--- shell
     touch                   => "touch",

@@ -37,7 +37,7 @@
     use      ILT::ProgUtils;
     @ISA = ( "ILT::SceneObject" );
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/TextObject.pm,v 1.1 1998-07-21 15:10:35 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/TextObject.pm,v 1.2 1998-08-05 13:54:52 david Exp $';
 
 #--------------------------------------------------------------------------
 # define the name of this class
@@ -87,6 +87,8 @@ sub new( $$ )
     $self->viewport_position( $x_pos, $y_pos );
     $self->font( $font );
     $self->colour( "green" );
+    $self->horizontal_alignment( Align_left );
+    $self->vertical_alignment( Align_bottom );
 
     return $self;
 }
@@ -199,6 +201,62 @@ sub colour( $@ )
     return( $self->{COLOUR} );
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : horizontal_alignment
+#@INPUT      : self
+#              alignment
+#@OUTPUT     : 
+#@RETURNS    : alignment
+#@DESCRIPTION: Gets and possibly sets (if optional argument present) the
+#              horizontal alignment of the text (Align_left, Align_centre,
+#              or Align_right.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Jul. 21, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
+sub horizontal_alignment( $@ )
+{
+    my( $self )       = arg_object( shift, $this_class );
+    my( $alignment )  = opt_arg_enum( shift, N_align_enums );
+    end_args();
+
+    if( defined($alignment) )
+        { $self->{HORIZONTAL_ALIGNMENT} = $alignment; }
+
+    return( $self->{HORIZONTAL_ALIGNMENT} );
+}
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : vertical_alignment
+#@INPUT      : self
+#              alignment
+#@OUTPUT     : 
+#@RETURNS    : alignment
+#@DESCRIPTION: Gets and possibly sets (if optional argument present) the
+#              vertical alignment of the text (Align_left, Align_centre,
+#              or Align_right.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Jul. 21, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
+sub vertical_alignment( $@ )
+{
+    my( $self )       = arg_object( shift, $this_class );
+    my( $alignment )  = opt_arg_enum( shift, N_align_enums );
+    end_args();
+
+    if( defined($alignment) )
+        { $self->{VERTICAL_ALIGNMENT} = $alignment; }
+
+    return( $self->{VERTICAL_ALIGNMENT} );
+}
+
 sub _get_args( $$$ )
 {
     my( $self )             =  arg_object( shift, $this_class );
@@ -261,8 +319,8 @@ sub  _determine_width_and_height( $ )
     $out = `imginfo $tmp_file`;
     $out =~ /Dimensions.*:\s+(\d+),\s+(\d+),/;
 
-    $self->{HEIGHT} = $1;
-    $self->{WIDTH} = $2;
+    $self->{HEIGHT} = $2;
+    $self->{WIDTH} = $1;
 
     delete_tmp_files( $tmp_file );
 }
@@ -287,7 +345,7 @@ sub height( $ )
 
     $self->_determine_width_and_height();
 
-    return( 20 );
+    return( $self->{HEIGHT} );
 }
 
 #----------------------------- MNI Header -----------------------------------
@@ -310,7 +368,7 @@ sub width( $ )
 
     $self->_determine_width_and_height();
 
-    return( 20 );
+    return( $self->{WIDTH} );
 }
 
 #----------------------------- MNI Header -----------------------------------
@@ -384,22 +442,58 @@ sub get_text_image_magick_args( $$$ )
     my( $viewport_y_size )  =  arg_real( shift, 0, 1e30 );
     end_args( @_ );
 
-    my( $args, $x, $y, $font, $xv, $yv, $colour, $string );
+    my( $args, $x, $y, $font, $xv, $yv, $colour, $string, $width, $height,
+        $x_offset, $y_offset );
 
     $font = $self->font();
     $colour = $self->colour();
     $string = $self->string();
     ( $xv, $yv ) = $self->viewport_position();
 
-    $x = int( $xv * $viewport_x_size + 0.5 );
-    $y = int( $yv * $viewport_y_size + 0.5 );
+    $width = $self->width();
+    $height = $self->height();
 
-    $self->width();
-    $self->height();
+    if( $self->horizontal_alignment() == Align_centre )
+        { $x_offset = -$width / 2; }
+    elsif( $self->horizontal_alignment() == Align_right )
+        { $x_offset = -$width; }
+    else
+        { $x_offset = 0; }
+
+    if( $self->vertical_alignment() == Align_centre )
+        { $y_offset = -$height / 2; }
+    elsif( $self->vertical_alignment() == Align_top )
+        { $y_offset = -$height; }
+    else
+        { $y_offset = 0; }
+
+    $x = int( $xv * $viewport_x_size + $x_offset + 0.5 );
+    $y = int( $yv * $viewport_y_size + $y_offset + 0.5 );
 
     $args = "-font $font -pen $colour -geometry +${x}+${y} -annotate \"$string\"";
 
     return( $args );
+}
+
+sub create_text_image_file( $$$$$ )
+{
+    my( $self )               =  arg_object( shift, $this_class );
+    my( $filename )           =  arg_string( shift );
+    my( $background_colour )  =  arg_string( shift );
+    my( $x_size )             =  arg_int( shift, 1, 1e30 );
+    my( $y_size )             =  arg_int( shift, 1, 1e30 );
+    end_args( @_ );
+
+    my( $args );
+
+    run_executable( "ray_trace",
+                    " -bg $background_colour " .
+                    " -size $x_size $y_size -output $filename" );
+
+    $args = $self->get_text_image_magick_args( $x_size, $y_size ) .
+            " $filename";
+
+    run_executable( "mogrify", $args );
 }
 
 1;
