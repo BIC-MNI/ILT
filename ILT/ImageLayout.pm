@@ -1,4 +1,32 @@
 #!/usr/local/bin/perl5 -w
+# ----------------------------------------------------------------------------
+#@COPYRIGHT  :
+#              Copyright 1993,1994,1995,1996,1997,1998 David MacDonald,
+#              McConnell Brain Imaging Centre,
+#              Montreal Neurological Institute, McGill University.
+#              Permission to use, copy, modify, and distribute this
+#              software and its documentation for any purpose and without
+#              fee is hereby granted, provided that the above copyright
+#              notice appear in all copies.  The author and McGill University
+#              make no representations about the suitability of this
+#              software for any purpose.  It is provided "as is" without
+#              express or implied warranty.
+#-----------------------------------------------------------------------------
+
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : ImageLayout.pm
+#@INPUT      : 
+#@OUTPUT     : 
+#@RETURNS    : 
+#@DESCRIPTION: Object class for creating image files which contain several
+#              sub-images which are renderings of geometry and data
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
 
     package  ILT::ImageLayout;
 
@@ -6,7 +34,22 @@
     use      ILT::LayoutUtils;
     use      ILT::LayoutInclude;
 
+#--- Define the name of this class
+
 my( $this_class ) = "ILT::ImageLayout";
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : new
+#@INPUT      : prototype
+#@OUTPUT     : 
+#@RETURNS    : an instance of ImageLayout class
+#@DESCRIPTION: Creates an instance of the ImageLayout class.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
 
 sub new( $ )
 {
@@ -29,6 +72,21 @@ sub new( $ )
     return $self;
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : new_grid
+#@INPUT      : prototype
+#              n_rows
+#              n_cols
+#@OUTPUT     : 
+#@RETURNS    : an instance of an ImageLayout
+#@DESCRIPTION: Creates an ImageLayout object with a grid oriented layout.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub new_grid( $$$ )
 {
     my( $proto )  = shift;
@@ -47,6 +105,21 @@ sub new_grid( $$$ )
     return $self;
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : n_images
+#@INPUT      : self
+#              n_images   (optional)
+#@OUTPUT     : 
+#@RETURNS    : current number of images
+#@DESCRIPTION: Returns the number of images.  With the optional argument, sets
+#              the number of images.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub n_images( $@ )
 {
     my( $self )     = arg_object( shift, $this_class );
@@ -59,6 +132,21 @@ sub n_images( $@ )
     return( $self->{N_IMAGES} );
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : n_rows
+#@INPUT      : self
+#@OUTPUT     : 
+#@RETURNS    : n rows
+#@DESCRIPTION: Returns the number of rows.  Note that you cannot set the number
+#              of rows with this routine;  it can only be set on creation by
+#              new_grid().
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub n_rows( $ )
 {
     my( $self ) = arg_object( shift, $this_class );
@@ -67,6 +155,21 @@ sub n_rows( $ )
     return( $self->{N_ROWS} );
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : n_cols
+#@INPUT      : self
+#@OUTPUT     : 
+#@RETURNS    : n cols
+#@DESCRIPTION: Returns the number of columns.  Note that you cannot set the
+#              number of columns with this routine;  it can only be set on
+#              creation by new_grid().
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub n_cols( $ )
 {
     my( $self ) = arg_object( shift, $this_class );
@@ -74,6 +177,21 @@ sub n_cols( $ )
 
     return( $self->{N_COLS} );
 }
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : horizontal_white_space
+#@INPUT      : self
+#              horizontal_white_space   (optional)
+#@OUTPUT     : 
+#@RETURNS    : current value
+#@DESCRIPTION: Returns the current value of this parameter.  With the optional
+#              parameter present, sets the value.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
 
 sub horizontal_white_space( $@ )
 {
@@ -87,6 +205,21 @@ sub horizontal_white_space( $@ )
     return( $self->{HORIZONTAL_WHITE_SPACE} );
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : vertical_white_space
+#@INPUT      : self
+#              vertical_white_space   (optional)
+#@OUTPUT     : 
+#@RETURNS    : current value
+#@DESCRIPTION: Returns the current value of this parameter.  With the optional
+#              parameter present, sets the value.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub vertical_white_space( $@ )
 {
     my( $self )     = arg_object( shift, $this_class );
@@ -98,6 +231,21 @@ sub vertical_white_space( $@ )
 
     return( $self->{VERTICAL_WHITE_SPACE} );
 }
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : white_space_colour
+#@INPUT      : self
+#              white_space_colour   (optional)
+#@OUTPUT     : 
+#@RETURNS    : current value  (a string consisting of the named of the colour)
+#@DESCRIPTION: Returns the current value of this parameter.  With the optional
+#              parameter present, sets the value.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
 
 sub white_space_colour( $@ )
 {
@@ -111,6 +259,19 @@ sub white_space_colour( $@ )
     return( $self->{WHITE_SPACE_COLOUR} );
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : is_in_grid_mode
+#@INPUT      : self
+#@OUTPUT     : 
+#@RETURNS    : whether in grid mode
+#@DESCRIPTION: Returns True if the ImageLayout is in a grid orientation.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub  is_in_grid_mode( $ )
 {
     my( $self )     = arg_object( shift, $this_class );
@@ -119,6 +280,21 @@ sub  is_in_grid_mode( $ )
     return( $self->n_rows() > 0 && $self->n_cols() > 0 );
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : row_col_to_index
+#@INPUT      : self
+#              row
+#              col
+#@OUTPUT     : 
+#@RETURNS    : image index
+#@DESCRIPTION: Computes the image index based on the row and column index.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub  row_col_to_index( $$$ )
 {
     my( $self )    = arg_object( shift, $this_class );
@@ -126,8 +302,28 @@ sub  row_col_to_index( $$$ )
     my( $col )     = arg_int( shift, 0, $self->n_cols()-1 );
     end_args( @_ );
 
+    if( ! $self->is_in_grid_mode() )
+        { fatal_error( "row_col_to_index(): not in grid mode\n" ); }
+
     return( $row * $self->{N_COLS} + ($self->{N_COLS}-1-$col) );
 }
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : image_info
+#@INPUT      : self
+#              image_index
+#              image_info   (optional)
+#@OUTPUT     : 
+#@RETURNS    : current value
+#@DESCRIPTION: Returns the current image_info object associated with the
+#              given image index.  If the optional image_info parameter is
+#              present, sets the value.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
 
 sub image_info( $$@ )
 {
@@ -137,12 +333,30 @@ sub image_info( $$@ )
     end_args( @_ );
 
     if( defined( $value_to_set ) )
-    {
-        $self->{IMAGES}[$image_index] = $value_to_set;
-    }
+        { $self->{IMAGES}[$image_index] = $value_to_set; }
 
     return( $self->{IMAGES}[$image_index] );
 }
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : compute_geometry
+#@INPUT      : self
+#              full_x_size     : final image size
+#              full_y_size
+#@OUTPUT     : x_pos           : refs to arrays of positions for each sub-image
+#              y_pos
+#              x_sizes         : refs to arrays of sizes for each sub-image
+#              y_sizes
+#@RETURNS    : void
+#@DESCRIPTION: Assigns the size and position of each sub image.  Assumes all
+#              image_info's have been assigned.  Currently, only grid mode
+#              is implemented
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
 
 sub   compute_geometry( $$$$$$$ )
 {
@@ -170,15 +384,16 @@ sub   compute_geometry( $$$$$$$ )
         $x_size = $full_x_size - ($n_cols - 1) * $hor_white_space;
         $y_size = $full_y_size - ($n_rows - 1) * $vert_white_space;
 
+        #-----------------------------------------------------------------------
+        # compute the maximum world height of an image for each row and the
+        # maximum world width for each column
+        #-----------------------------------------------------------------------
+
         for( $row = 0;  $row < $n_rows;  ++$row )
-        {
-            $max_world_height[$row] = 0;
-        }
+            { $max_world_height[$row] = 0; }
 
         for( $col = 0;  $col < $n_cols;  ++$col )
-        {
-            $max_world_width[$col] = 0;
-        }
+            { $max_world_width[$col] = 0; }
 
         for( $row = 0;  $row < $n_rows;  ++$row )
         {
@@ -206,6 +421,10 @@ sub   compute_geometry( $$$$$$$ )
             }
         }
 
+        #----------------------------------------------------------------------
+        # sum up the total height across rows and width across columns
+        #----------------------------------------------------------------------
+
         $total_height = 0;
         for( $row = 0;  $row < $n_rows;  ++$row )
             { $total_height += $max_world_height[$row]; }
@@ -214,44 +433,92 @@ sub   compute_geometry( $$$$$$$ )
         for( $col = 0;  $col < $n_cols;  ++$col )
             { $total_width += $max_world_width[$col]; }
 
+        #----------------------------------------------------------------------
+        # now the scale factor that converts world coordinates to pixel
+        # coordinates can be computed
+        #----------------------------------------------------------------------
+
         $x_scale = $x_size / $total_width;
         $y_scale = $y_size / $total_height;
+
+        #----------------------------------------------------------------------
+        # due to aspect differences, choose the smaller scale
+        #----------------------------------------------------------------------
 
         if( $x_scale < $y_scale )
             { $scale = $x_scale; }
         else
             { $scale = $y_scale; }
 
+        #----------------------------------------------------------------------
+        # Depending on the aspect, one of these offsets will be 0 and the
+        # other positive
+        #----------------------------------------------------------------------
+
         $x_offset = ($full_x_size - $scale * $total_width -
                       ($n_cols-1) * $hor_white_space) / 2;
         $y_offset = ($full_y_size - $scale * $total_height -
                       ($n_rows-1) * $vert_white_space) / 2;
 
+        #----------------------------------------------------------------------
+        # Now we can step through the rows and columns and assign positions
+        # and sizes
+        #----------------------------------------------------------------------
+
         $current_y = $y_offset;
         for( $row = 0;  $row < $n_rows;  ++$row )
         {
+            #------------------------------------------------------------------
+            # get the pixel height of this row
+            #------------------------------------------------------------------
+
             $height = $scale * $max_world_height[$row];
+
             $current_x = $x_offset;
             for( $col = 0;  $col < $n_cols;  ++$col )
             {
+                #--------------------------------------------------------------
+                # get the pixel width of this column
+                #--------------------------------------------------------------
+
                 $width = $scale * $max_world_width[$col];
 
                 $image_index = $self->row_col_to_index( $row, $col );
 
+                #--------------------------------------------------------------
+                # compute the sizes as the scale factor times the world
+                # coordinate size of the bounding box
+                #--------------------------------------------------------------
+
                 $$x_sizes[$image_index] = int( $scale *
                              $self->{IMAGES}[$image_index]->scene_view()->
-                                       get_bounding_box_width() ) - 1;
-                $$x_pos[$image_index] = $current_x +
-                              ($width - $$x_sizes[$image_index]) / 2;
+                                       get_bounding_box_width() );
 
                 $$y_sizes[$image_index] = int( $scale *
                              $self->{IMAGES}[$image_index]->scene_view()->
-                                 get_bounding_box_height() ) - 1;
+                                 get_bounding_box_height() );
+
+                #--------------------------------------------------------------
+                # compute the position, by centering the image within 
+                # the space alloted for the row or column.
+                #--------------------------------------------------------------
+
+                $$x_pos[$image_index] = $current_x +
+                              ($width - $$x_sizes[$image_index]) / 2;
+
                 $$y_pos[$image_index] = $current_y +
                               ($height - $$y_sizes[$image_index]) / 2;
 
+                #--------------------------------------------------------------
+                # advance to the next column
+                #--------------------------------------------------------------
+
                 $current_x += $width + $hor_white_space;
             }
+
+            #--------------------------------------------------------------
+            # advance to the next row
+            #--------------------------------------------------------------
 
             $current_y += $height + $vert_white_space;
         }
@@ -262,16 +529,40 @@ sub   compute_geometry( $$$$$$$ )
     }
 }
 
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : generate_image
+#@INPUT      : self
+#              filename
+#              full_x_size
+#              full_y_size
+#@OUTPUT     : 
+#@RETURNS    : void
+#@DESCRIPTION: Positions, renders, and assembles the montage of sub-images
+#              into an image of size full_x_size by full_y_size, storing the
+#              result in the file specified by filename.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Apr. 16, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
 sub generate_image
 {
     my( $self     )    = arg_object( shift, $this_class );
     my( $filename )    = arg_string( shift );
-    my( $full_x_size ) = arg_int( shift, 1, 1e30 );
-    my( $full_y_size ) = arg_int( shift, 1, 1e30 );
+    my( $full_x_size ) = arg_int( shift, 0, 1e30 );
+    my( $full_y_size ) = arg_int( shift, 0, 1e30 );
     end_args( @_ );
 
     my( $image_index, @x_pos, @y_pos, @x_size, @y_size,
         @tmp_image_files, $white_space_colour, $layout_args );
+
+    #-------------------------------------------------------------------------
+    # foreach sub-image, ask the associated view to compute any view
+    # parameters not explicitly set already.  This can be the view
+    # orientation, the view direction, and the bounding box of the view
+    #-------------------------------------------------------------------------
 
     for( $image_index = 0;  $image_index < $self->{N_IMAGES};  ++$image_index )
     {
@@ -280,8 +571,16 @@ sub generate_image
                                 $self->{IMAGES}[$image_index]->scene_object );
     }
 
+    #-------------------------------------------------------------------------
+    # assign the sizes and positions of the sub-images within the montage
+    #-------------------------------------------------------------------------
+
     $self->compute_geometry( $full_x_size, $full_y_size,
                              \@x_pos, \@y_pos, \@x_size, \@y_size );
+
+    #-------------------------------------------------------------------------
+    # generate all the sub-images into a set of temporary files
+    #-------------------------------------------------------------------------
 
     @tmp_image_files = ();
 
@@ -289,25 +588,51 @@ sub generate_image
 
     for( $image_index = 0;  $image_index < $self->{N_IMAGES};  ++$image_index )
     {
+        #----------------------------------------------------------------------
+        # generate a temporary rgb filename
+        #----------------------------------------------------------------------
+
         $tmp_image_files[$image_index] = get_tmp_file( "rgb" );
 
-        $self->{IMAGES}[$image_index]->create_image(
-                    $tmp_image_files[$image_index],
-                    $x_size[$image_index],
-                    $y_size[$image_index],
-                    $self->{IMAGES}[$image_index]->scene_view() );
+        #----------------------------------------------------------------------
+        # ask the i'th image_info to render itself to the temporary file
+        #----------------------------------------------------------------------
 
-        $self->{IMAGES}[$image_index]->scene_object()->delete_temp_geometry_file();
+        $self->{IMAGES}[$image_index]->create_image(
+                                      $tmp_image_files[$image_index],
+                                      $x_size[$image_index],
+                                      $y_size[$image_index] );
+
+        #----------------------------------------------------------------------
+        # add the desired position to the string containing layout arguments
+        #----------------------------------------------------------------------
 
         $layout_args = $layout_args . " " . $tmp_image_files[$image_index] .
                        " " . $x_pos[$image_index] .
                        " " . $y_pos[$image_index];
     }
 
+    #-------------------------------------------------------------------------
+    # delete any temporary geometry created by the scene objects
+    #-------------------------------------------------------------------------
+
+    for( $image_index = 0;  $image_index < $self->{N_IMAGES};  ++$image_index )
+    {
+        $self->{IMAGES}[$image_index]->scene_object()->delete_temp_geometry_file();
+    }
+
+    #-------------------------------------------------------------------------
+    # place the N_IMAGES sub-images into a single file: $filename
+    #-------------------------------------------------------------------------
+
     $white_space_colour = $self->{WHITE_SPACE_COLOUR};
 
     system_call( "place_images $filename $white_space_colour " .
                  " -size $full_x_size $full_y_size $layout_args" );
+
+    #-------------------------------------------------------------------------
+    # delete the temporary image files
+    #-------------------------------------------------------------------------
 
     delete_tmp_files( @tmp_image_files );
 }
