@@ -3,6 +3,7 @@
     package  ILT::LayoutUtils;
     use  strict;
     use  Carp;
+    use  ILT::Executables;
     use UNIVERSAL qw(isa);
 
 
@@ -414,7 +415,7 @@ sub  copy_file( $$ )
     my( $dest ) = arg_string( shift );
     end_args( @_ );
 
-    system_call( "cp $src $dest" );
+    run_executable( "cp", "$src $dest" );
 }
 
 sub get_directory( $ )
@@ -583,7 +584,7 @@ sub compute_geometry_file_bounding_view( $$$@ )
     my( $transform )          = arg_string( shift );
     end_args( @_ );
 
-    my( @view_direction, @up_direction, $command,
+    my( @view_direction, @up_direction, $args,
         $x_centre, $y_centre, $z_centre, $out,
         $x_min, $x_max, $y_min, $y_max, $z_min, $z_max );
 
@@ -593,7 +594,7 @@ sub compute_geometry_file_bounding_view( $$$@ )
     if( !defined($transform) )
         { $transform = ""; }
 
-    $command = sprintf( "compute_bounding_view %s %g %g %g %g %g %g %s",
+    $args = sprintf( "%s %g %g %g %g %g %g %s",
                         $filename,
                         $view_direction[0],
                         $view_direction[1],
@@ -603,7 +604,7 @@ sub compute_geometry_file_bounding_view( $$$@ )
                         $up_direction[2],
                         $transform );
 
-    $out = `$command`;
+    $out = get_output_of_command( "compute_bounding_view", $args );
 
     $out =~ /Bounding_box:\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)/m;
 
