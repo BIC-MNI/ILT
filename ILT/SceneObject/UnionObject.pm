@@ -37,7 +37,7 @@
     use      UNIVERSAL qw(isa);
     @ISA =   ( "ILT::SceneObject" );
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/UnionObject.pm,v 1.5 1998-05-22 14:44:45 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/UnionObject.pm,v 1.6 1998-09-18 13:30:01 david Exp $';
 
 #--------------------------------------------------------------------------
 # define the name of this class
@@ -276,6 +276,10 @@ sub compute_bounding_view( $$$$ )
                                                         $up_direction_ref,
                                                         $transform );
 
+        if( $sub_x_min > $sub_x_max || $sub_y_min > $sub_y_max ||
+            $sub_z_min > $sub_z_max )
+            { next; }
+
         if( $first )
         {
             ($x_min, $x_max, $y_min, $y_max, $z_min, $z_max) =
@@ -363,6 +367,49 @@ sub  delete_temp_geometry_file
     {
         $sub_object->delete_temp_geometry_file();
     }
+}
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : get_text_image_magick_args
+#@INPUT      : self
+#              viewport_x_size
+#              viewport_y_size
+#@OUTPUT     : 
+#@RETURNS    : text arguments for rendering text to image
+#@DESCRIPTION: 
+#@METHOD     :
+#@GLOBALS    :
+#@CALLS      :  
+#@CREATED    : Jun. 23, 1998    David MacDonald
+#@MODIFIED   :
+#----------------------------------------------------------------------------
+
+sub get_text_image_magick_args( $$$ )
+{
+    my( $self )             =  arg_object( shift, $this_class );
+    my( $viewport_x_size )  =  arg_real( shift, 0, 1e30 );
+    my( $viewport_y_size )  =  arg_real( shift, 0, 1e30 );
+    end_args( @_ );
+
+    my( $args, $sub_object, $sub_text );
+
+    $args = "";
+
+    foreach $sub_object ( @{$self->{SUB_OBJECTS}} )
+    {
+        $sub_text = $sub_object->get_text_image_magick_args(
+                                      $viewport_x_size, $viewport_y_size );
+
+        if( defined($sub_text) && $sub_text ne "" )
+        {
+             if( $args ne "" )
+                 { $args = $args . " "; }
+
+             $args = $args . $sub_text;
+        }
+    }
+
+    return( $args );
 }
 
 #--------------------------------------------------------------------------

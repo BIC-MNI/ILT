@@ -36,15 +36,16 @@
     use ILT::ImageInfo;
     use ILT::View;
     use ILT::SceneObject;
+    use ILT::SceneObject::ColourObject;
     use ILT::SceneObject::GeometricObject;
-    use ILT::SceneObject::PlaneObject;
     use ILT::SceneObject::IntersectionObject;
+    use ILT::SceneObject::OneSubObject;
+    use ILT::SceneObject::PlaneObject;
+    use ILT::SceneObject::RenderObject;
+    use ILT::SceneObject::TextObject;
+    use ILT::SceneObject::TransformObject;
     use ILT::SceneObject::UnionObject;
     use ILT::SceneObject::VolumeObject;
-    use ILT::SceneObject::ColourObject;
-    use ILT::SceneObject::TransformObject;
-    use ILT::SceneObject::RenderObject;
-    use ILT::SceneObject::OneSubObject;
 
 
 1;

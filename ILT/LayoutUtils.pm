@@ -52,16 +52,22 @@
                           &Back_view
                           &Front_view
                           &N_view_enums
+                          &Align_left
+                          &Align_centre
+                          &Align_right
+                          &Align_top
+                          &Align_bottom
+                          &N_align_enums
                         );
     }
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/LayoutUtils.pm,v 1.6 1998-05-22 14:44:35 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/LayoutUtils.pm,v 1.7 1998-09-18 13:30:02 david Exp $';
 
 #---------------
 
 sub ILT_version()
 {
-    return( "0.1" );
+    return( "1.0" );
 }
 
 #---------------
@@ -149,6 +155,15 @@ sub Sagittal_axis()       { return( 0 ); }
 sub Coronal_axis()        { return( 1 ); }
 sub Transverse_axis()     { return( 2 ); }
 sub N_axis_enums()        { return( 3 ); }
+
+#----- Enumerated types for axes
+
+sub Align_left()          { return( 0 ); }
+sub Align_centre()        { return( 1 ); }
+sub Align_right()         { return( 2 ); }
+sub Align_bottom()        { return( 0 ); }
+sub Align_top()           { return( 2 ); }
+sub N_align_enums()       { return( 3 ); }
 
 #---------- vector operations
 

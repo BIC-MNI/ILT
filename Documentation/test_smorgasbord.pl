@@ -368,6 +368,55 @@
 
 #--------------------------------------------------------------------------
 #
+#   image[3][1] is an arbitrarily oriented slice through a volume,
+#   with text annotation added
+#
+#--------------------------------------------------------------------------
+
+    $plane_object = ILT::PlaneObject->new( 1.0, 2.0, 3.0, 0, 0, 0 );
+    $view = ILT::View->new_arbitrary( 1, 2, 3, 0, 1, 0 );
+    $volume_object = ILT::VolumeObject->new( "Data/volume1.mnc" );
+
+    $scene_object = 
+                  ILT::ColourObject->new_volume_colouring(
+                       ILT::IntersectionObject->new( $plane_object,
+                                                     $volume_object ),
+                       $volume_object, Hot_metal_scale, 50, 150 );
+
+    $text_object = ILT::TextObject->new( "Some Text Annotation", .5, .05 );
+    $text_object->font( "-adobe-helvetica-medium-r-normal--14-140-75-75-p-77-iso8859-1" );
+    $text_object->colour( "green" );
+    $text_object->horizontal_alignment( Align_centre );
+    $text_object->vertical_alignment( Align_bottom );
+
+    $scene_object = ILT::UnionObject->new( $scene_object, $text_object );
+
+    $image_info = ILT::ImageInfo->new( $scene_object, $view );
+    $layout->image_info( $layout->row_col_to_index(3,1), $image_info );
+
+#-----------------------------------------------------------------
+#   Create a header object
+#-----------------------------------------------------------------
+
+    $header = ILT::TextObject->new( "Output of $0", .5, .5 );
+    $header->font( "-adobe-helvetica-medium-r-normal--34-240-100-100-p-176-iso8859-1" );
+    $header->colour( "yellow" );
+    $header->horizontal_alignment( Align_centre );
+    $header->vertical_alignment( Align_centre );
+    $layout->header( $header );
+
+#-----------------------------------------------------------------
+#   Create a footer object
+#-----------------------------------------------------------------
+
+    $footer = ILT::TextObject->new( "This is an example footer", .5, .5 );
+    $footer->colour( "yellow" );
+    $footer->horizontal_alignment( Align_centre );
+    $footer->vertical_alignment( Align_centre );
+    $layout->footer( $footer );
+
+#--------------------------------------------------------------------------
+#
 #   now generate the images
 #
 #--------------------------------------------------------------------------

@@ -38,7 +38,7 @@
     use      ILT::ProgUtils;
     @ISA = ( "ILT::SceneObject" );
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/GeometricObject.pm,v 1.6 1998-05-22 14:44:45 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/GeometricObject.pm,v 1.7 1998-09-18 13:30:00 david Exp $';
 
 #--------------------------------------------------------------------------
 # define the name of this class
@@ -199,30 +199,6 @@ sub  get_plane_intersection( $$$$ )
                         $plane_origin[0], $plane_origin[1], $plane_origin[2] );
 
     run_executable( "plane_polygon_intersect", $command );
-}
-
-#----------------------------- MNI Header -----------------------------------
-#@NAME       : delete_temp_geometry_file
-#@INPUT      : self
-#@OUTPUT     : 
-#@RETURNS    : 
-#@DESCRIPTION: Does nothing, but for some reason, if I don't have this here
-#              the base class (ILT::SceneObject->delete_temp_geometry_file)
-#              does not get correctly called.
-#@METHOD     : 
-#@GLOBALS    : 
-#@CALLS      :  
-#@CREATED    : Apr. 16, 1998    David MacDonald
-#@MODIFIED   : 
-#----------------------------------------------------------------------------
-
-sub  delete_temp_geometry_file( $ )
-{
-    my( $self )                = arg_object( shift, $this_class );
-    end_args( @_ );
-
-#---- shouldn't need this stub, since the base class, SceneObject should
-#---- handle this, but for some reason I'm getting a runtime error
 }
 
 1;

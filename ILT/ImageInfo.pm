@@ -37,7 +37,7 @@
     use      ILT::Executables;
     use      ILT::LayoutInclude;
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/ImageInfo.pm,v 1.5 1998-05-22 14:44:35 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/ImageInfo.pm,v 1.6 1998-09-18 13:30:02 david Exp $';
 
 #--------------------------------------------------------------------------
 # define the class of this package
@@ -199,7 +199,8 @@ sub create_image( $$$$$ )
     end_args( @_ );
 
     my( $view, $geom_args, $view_args, $args,
-        @view_direction, @up_direction, @eye, $window_width, $bg );
+        @view_direction, @up_direction, @eye, $window_width, $bg,
+        $text_args );
 
     #--------------------------------------------------------------------------
     # create the ray trace arguments to render the scene geometry
@@ -233,7 +234,7 @@ sub create_image( $$$$$ )
     #--------------------------------------------------------------------------
 
     if( defined($self->background_colour() ) )
-        { $bg = sprintf( "-bg %s", $self->background_colour() ); }
+        { $bg = sprintf( "-bg '%s'", $self->background_colour() ); }
     else
         { $bg = "-bg black"; }
 
@@ -247,11 +248,21 @@ sub create_image( $$$$$ )
                " $geom_args ";
 
     #--------------------------------------------------------------------------
-    # finally, execute the command to render the image
+    # execute the command to render the image
     #--------------------------------------------------------------------------
 
-
     run_executable( "ray_trace", $args );
+
+    #--------------------------------------------------------------------------
+    # Now add any text to the image
+    #--------------------------------------------------------------------------
+
+    $text_args = $self->{OBJECT}->get_text_image_magick_args( $x_size, $y_size);
+
+    if( $text_args ne "" )
+    {
+        run_executable( "mogrify", $text_args . " $filename" );
+    }
 }
 
 1;

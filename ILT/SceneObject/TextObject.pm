@@ -37,7 +37,7 @@
     use      ILT::ProgUtils;
     @ISA = ( "ILT::SceneObject" );
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/TextObject.pm,v 1.2 1998-08-05 13:54:52 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/TextObject.pm,v 1.3 1998-09-18 13:30:01 david Exp $';
 
 #--------------------------------------------------------------------------
 # define the name of this class
@@ -145,6 +145,17 @@ sub viewport_position( $@ )
         { $self->{X_POS} = $pos[0];  $self->{Y_POS} = $pos[1]; }
 
     return( $self->{X_POS}, $self->{Y_POS} );
+}
+
+sub viewport_position_in_pixels( $$$ )
+{
+    my( $self )             = arg_object( shift, $this_class );
+    my( $viewport_x_size )  =  arg_real( shift, 0, 1e30 );
+    my( $viewport_y_size )  =  arg_real( shift, 0, 1e30 );
+    end_args();
+
+    return( ($viewport_x_size * $self->{X_POS} - 0.5,
+             $viewport_y_size * $self->{Y_POS} - 0.5 ) );
 }
 
 #----------------------------- MNI Header -----------------------------------
@@ -269,11 +280,11 @@ sub _get_args( $$$ )
     $font = $self->font();
     $colour = $self->colour();
     $string = $self->string();
-    ( $xv, $yv ) = $self->viewport_position();
+    ( $xv, $yv ) = $self->viewport_position_in_pixels( $viewport_x_size,
+                                                       $viewport_y_size );
 
-    print( "Xv: $xv\n" );
-    $x = int( $xv * $viewport_x_size + 0.5 );
-    $y = int( $yv * $viewport_y_size + 0.5 );
+    $x = int( $xv + 0.5 );
+    $y = int( $yv + 0.5 );
 
     $args = "-font $font -pen $colour -geometry +${x}+${y} -annotate \"$string\"";
 
@@ -287,6 +298,8 @@ sub  _reset_width_and_height( $ )
 
     $self->{WIDTH} = undef;
     $self->{HEIGHT} = undef;
+    $self->{X_OFFSET} = undef;
+    $self->{Y_OFFSET} = undef;
 }
 
 sub  _determine_width_and_height( $ )
@@ -294,7 +307,9 @@ sub  _determine_width_and_height( $ )
     my( $self )    = arg_object( shift, $this_class );
     end_args();
 
-    my( $args, $tmp_file, $string, $font, $out );
+    my( $args, $tmp_file, $string, $font, $out, $test_x_size, $test_y_size,
+        $x_min, $x_max, $y_min, $y_max, $test_x_offset, $test_y_offset,
+        $find_bbox_executable, $bg_colour );
 
     if( defined( $self->{WIDTH} ) && defined( $self->{HEIGHT} ) )
         { return; }
@@ -304,23 +319,40 @@ sub  _determine_width_and_height( $ )
     {
         $self->{HEIGHT} = 0;
         $self->{WIDTH} = 0;
+        $self->{X_OFFSET} = 0;
+        $self->{Y_OFFSET} = 0;
         return;
     }
 
+    $test_x_size = 1000;
+    $test_y_size = 200;
+    $test_x_offset = 10;
+    $test_y_offset = $test_y_size - 1;
+    $bg_colour = "yellow";    # if this is white, the mogrify will, for some
+                              # reason, convert to gray_scale format
+
     $tmp_file = get_tmp_file( "rgb" );
-    run_executable( "ray_trace", " -bg white -size 400 200 -output $tmp_file" );
+    run_executable( "ray_trace", " -bg $bg_colour -size $test_x_size $test_y_size -output $tmp_file" );
 
     $font = $self->font();
-    $args = "-font $font -pen black -geometry +0x0 -annotate \"$string\"" .
-            " -crop 0x0 $tmp_file ";
-
+    $args = "-font $font -pen black -geometry " .
+            " +${test_x_offset}-${test_y_offset} -annotate \"$string\"" .
+            " $tmp_file ";
     run_executable( "mogrify", $args );
 
-    $out = `imginfo $tmp_file`;
-    $out =~ /Dimensions.*:\s+(\d+),\s+(\d+),/;
+    $find_bbox_executable = find_executable( "find_image_bounding_box" );
+    $out = `$find_bbox_executable $tmp_file $bg_colour`;
 
-    $self->{HEIGHT} = $2;
-    $self->{WIDTH} = $1;
+    $out =~ /Bounding box:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/;
+    $x_min = $1;
+    $x_max = $2;
+    $y_min = $3;
+    $y_max = $4;
+
+    $self->{WIDTH} = $x_max - $x_min + 1;
+    $self->{HEIGHT} = $y_max - $y_min + 1;
+    $self->{X_OFFSET} = $test_x_offset - $x_min;
+    $self->{Y_OFFSET} = $test_y_offset - $y_min;
 
     delete_tmp_files( $tmp_file );
 }
@@ -369,6 +401,56 @@ sub width( $ )
     $self->_determine_width_and_height();
 
     return( $self->{WIDTH} );
+}
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : x_offset
+#@INPUT      : self
+#@OUTPUT     : 
+#@RETURNS    : the x_offset of the text in pixels
+#@DESCRIPTION: Returns the x_offset of the text in pixels, in terms of where
+#              the bottom left of the bounding box is, relative to the
+#              asked-for position.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Aug. 3, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
+sub x_offset( $ )
+{
+    my( $self )  = arg_object( shift, $this_class );
+    end_args();
+
+    $self->_determine_width_and_height();
+
+    return( $self->{X_OFFSET} );
+}
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : y_offset
+#@INPUT      : self
+#@OUTPUT     : 
+#@RETURNS    : the y_offset of the text in pixels
+#@DESCRIPTION: Returns the x_offset of the text in pixels, in terms of where
+#              the bottom left of the bounding box is, relative to the
+#              asked-for position.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Aug. 3, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
+sub y_offset( $ )
+{
+    my( $self )  = arg_object( shift, $this_class );
+    end_args();
+
+    $self->_determine_width_and_height();
+
+    return( $self->{Y_OFFSET} );
 }
 
 #----------------------------- MNI Header -----------------------------------
@@ -443,34 +525,38 @@ sub get_text_image_magick_args( $$$ )
     end_args( @_ );
 
     my( $args, $x, $y, $font, $xv, $yv, $colour, $string, $width, $height,
-        $x_offset, $y_offset );
+        $x_align_offset, $y_align_offset );
 
     $font = $self->font();
     $colour = $self->colour();
     $string = $self->string();
-    ( $xv, $yv ) = $self->viewport_position();
+    ( $xv, $yv ) = $self->viewport_position_in_pixels( $viewport_x_size,
+                                                       $viewport_y_size );
 
     $width = $self->width();
     $height = $self->height();
 
     if( $self->horizontal_alignment() == Align_centre )
-        { $x_offset = -$width / 2; }
+        { $x_align_offset = -($width-1) / 2; }
     elsif( $self->horizontal_alignment() == Align_right )
-        { $x_offset = -$width; }
+        { $x_align_offset = -$width; }
     else
-        { $x_offset = 0; }
+        { $x_align_offset = 0; }
 
     if( $self->vertical_alignment() == Align_centre )
-        { $y_offset = -$height / 2; }
+        { $y_align_offset = -($height-1) / 2; }
     elsif( $self->vertical_alignment() == Align_top )
-        { $y_offset = -$height; }
+        { $y_align_offset = -$height; }
     else
-        { $y_offset = 0; }
+        { $y_align_offset = 0; }
 
-    $x = int( $xv * $viewport_x_size + $x_offset + 0.5 );
-    $y = int( $yv * $viewport_y_size + $y_offset + 0.5 );
+    $x = int( $xv + $self->x_offset + $x_align_offset + 0.5);
+    $y = int( $yv + $self->y_offset + $y_align_offset + 0.5);
 
-    $args = "-font $font -pen $colour -geometry +${x}+${y} -annotate \"$string\"";
+    if( $x < 0 )  { $x = 0; }
+    if( $y < 0 )  { $y = 0; }
+
+    $args = "-font $font -pen $colour -geometry +${x}-${y} -annotate \"$string\"";
 
     return( $args );
 }
@@ -484,16 +570,24 @@ sub create_text_image_file( $$$$$ )
     my( $y_size )             =  arg_int( shift, 1, 1e30 );
     end_args( @_ );
 
-    my( $args );
+    my( $args, $imginfo_executable, $out, $model );
 
     run_executable( "ray_trace",
-                    " -bg $background_colour " .
+                    " -bg '$background_colour' " .
                     " -size $x_size $y_size -output $filename" );
 
     $args = $self->get_text_image_magick_args( $x_size, $y_size ) .
             " $filename";
 
     run_executable( "mogrify", $args );
+
+    $imginfo_executable = find_executable( "imginfo" );
+    $out = `$imginfo_executable $filename`;
+    $out =~ /Color model:\s+(\S+)/;
+    $model = $1;
+
+    if( $model ne "RGB" )
+        { run_executable( "imgcopy", "-Crgb $filename $filename" ); }
 }
 
 1;

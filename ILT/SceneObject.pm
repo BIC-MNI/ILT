@@ -6,7 +6,7 @@
     use      ILT::LayoutUtils;
     use      ILT::ProgUtils;
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject.pm,v 1.4 1998-05-22 14:44:35 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject.pm,v 1.5 1998-09-18 13:30:03 david Exp $';
 
 my( $this_class ) = "ILT::SceneObject";
 
@@ -74,6 +74,31 @@ sub  get_default_view( $ )
     end_args( @_ );
 
     fatal_error( "called get_default_view() for base class\n" );
+}
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : get_text_image_magick_args
+#@INPUT      : self
+#@OUTPUT     : 
+#@RETURNS    : a string
+#@DESCRIPTION: Returns a string which are arguments to pass to the
+#              ImageMagick program to do text rendering.  For generic
+#              objects, does nothing.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : July 21, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
+sub get_text_image_magick_args( $$$ )
+{
+    my( $self )             =  arg_object( shift, $this_class );
+    my( $viewport_x_size )  =  arg_real( shift, 0, 1e30 );
+    my( $viewport_y_size )  =  arg_real( shift, 0, 1e30 );
+    end_args( @_ );
+
+    return( "" );
 }
 
 sub DESTROY()

@@ -20,7 +20,7 @@ David MacDonald
   <li> <a href="ILT_tutorial.html#Ex3">Example 3: Colour-Coded Slice of a Volume with Cross
 Section of Surface</a>
   <li> <a href="ILT_tutorial.html#Ex4">Example 4: Colour-Coded Slice of Pet on top of MRI</a>
-  <li> <a href="ILT_tutorial.html#Ex5">Example 5: Grid of Volume-Coloured Slices </a>
+  <li> <a href="ILT_tutorial.html#Ex5">Example 5: Grid of Volume-Coloured Slices with Header and Footer </a>
   <li> <a href="ILT_tutorial.html#ProgRef">Programmers' Reference</a>
 </ul>
 
@@ -78,7 +78,7 @@ into the <B>ImageInfo</B> object for the sub-image.
 <h2><a name="Ex1">Example 1: Surface Without Lighting</a></h2>
 
 <p>
-<img src="ILT_tutorial_images/example1.gif">
+<img src="ILT_tutorial_example_output/example1.gif">
 </p>
 
 <pre>
@@ -94,7 +94,7 @@ into the <B>ImageInfo</B> object for the sub-image.
     $image_info = new ILT::ImageInfo ( $surface, $view );
     $layout->image_info( 0, $image_info );
 
-    $layout->generate_image( "ILT_tutorial_images/example1.gif", 200, 0 );
+    $layout->generate_image( "ILT_tutorial_example_output/example1.gif", 200, 0 );
 </pre>
 
 <h3> Geometry Structure </h3>
@@ -112,7 +112,7 @@ The scene geometry is very simple, just a single object:
 <h2><a name="Ex2">Example 2: Colour-coded Slice of a Volume</a></h2>
 
 <p>
-<img src="ILT_tutorial_images/example2.gif">
+<img src="ILT_tutorial_example_output/example2.gif">
 </p>
 
 <pre>
@@ -136,7 +136,7 @@ The scene geometry is very simple, just a single object:
     $image_info = new ILT::ImageInfo ( $scene_object, $view );
     $layout->image_info( 0, $image_info );
 
-    $layout->generate_image( "ILT_tutorial_images/example2.gif", 200, 0 );
+    $layout->generate_image( "ILT_tutorial_example_output/example2.gif", 200, 0 );
 </pre>
 
 <h3> Geometry Structure </h3>
@@ -162,7 +162,7 @@ then volume-coloured, using the same volume.
 Section of Surface</a></h2>
 
 <p>
-<img src="ILT_tutorial_images/example3.gif">
+<img src="ILT_tutorial_example_output/example3.gif">
 </p>
 
 <pre>
@@ -190,7 +190,7 @@ Section of Surface</a></h2>
     $image_info = new ILT::ImageInfo ( $scene_object, $view );
     $layout->image_info( 0, $image_info );
 
-    $layout->generate_image( "ILT_tutorial_images/example3.gif", 200, 0 );
+    $layout->generate_image( "ILT_tutorial_example_output/example3.gif", 200, 0 );
 </pre>
 
 <h3> Geometry Structure </h3>
@@ -226,7 +226,7 @@ volume, but not to the intersection of the plane and the surface
 </a></h2>
 
 <p>
-<img src="ILT_tutorial_images/example4.gif">
+<img src="ILT_tutorial_example_output/example4.gif">
 </p>
 
 <pre>
@@ -258,7 +258,7 @@ volume, but not to the intersection of the plane and the surface
     $image_info = new ILT::ImageInfo ( $scene_object, $view );
     $layout->image_info( 0, $image_info );
 
-    $layout->generate_image( "ILT_tutorial_images/example4.gif", 200, 0 );
+    $layout->generate_image( "ILT_tutorial_example_output/example4.gif", 200, 0 );
 </pre>
 
 <h3> Geometry Structure </h3>
@@ -283,11 +283,11 @@ The structure is a volume colouring of a volume colouring of a slice
 <!--------------------------------------------------------------------->
 
 <hr>
-<h2><a name="Ex5">Example 5: Grid of Volume-Coloured Slices
+<h2><a name="Ex5">Example 5: Grid of Volume-Coloured Slices with Header and Footer
 </a></h2>
 
 <p>
-<img src="ILT_tutorial_images/example5.gif">
+<img src="ILT_tutorial_example_output/example5.gif">
 </p>
 
 <pre>
@@ -358,9 +358,26 @@ The structure is a volume colouring of a volume colouring of a slice
     $image_info = new ILT::ImageInfo ( $scene_object, $view );
     $layout->image_info( $layout->row_col_to_index(1,1), $image_info );
 
-#---------------------------------------------------
+#--------------- create the header
 
-    $layout->generate_image( "ILT_tutorial_images/example5.gif", 200, 0 );
+    $text_object = ILT::TextObject->new( "A Header", .5, .5 );
+    $text_object->colour( "blue" );
+    $text_object->horizontal_alignment( Align_centre );
+    $text_object->vertical_alignment( Align_centre );
+    $text_object->font( "12x24" );
+    $layout->header( $text_object );
+
+#--------------- create the footer
+
+    $text_object = ILT::TextObject->new( "This is the footer", .5, .5 );
+    $text_object->colour( "red" );
+    $text_object->horizontal_alignment( Align_centre );
+    $text_object->vertical_alignment( Align_centre );
+    $layout->footer( $text_object );
+
+#--------------- render the images
+
+    $layout->generate_image( "ILT_tutorial_example_output/example5.gif", 200, 0 );
 </pre>
 
 <!--------------------------------------------------------------------->
@@ -375,12 +392,27 @@ The structure is a volume colouring of a volume colouring of a slice
   <li> <a href="ILT_tutorial.html#ImageInfo">ImageInfo Object</a>
   <li> <a href="ILT_tutorial.html#View">View Object</a>
   <li> <a href="ILT_tutorial.html#SceneObject">SceneObject</a>
+  <ul>
+       <li> <a href="ILT_tutorial.html#SceneObject::GeometricObject">SceneObject::GeometricObject</a>
+       <li> <a href="ILT_tutorial.html#SceneObject::PlaneObject">SceneObject::PlaneObject</a>
+       <li> <a href="ILT_tutorial.html#SceneObject::VolumeObject">SceneObject::VolumeObject</a>
+       <li> <a href="ILT_tutorial.html#SceneObject::ColourObject">SceneObject::ColourObject</a>
+       <li> <a href="ILT_tutorial.html#SceneObject::IntersectionObject">SceneObject::IntersectionObject</a>
+       <li> <a href="ILT_tutorial.html#SceneObject::UnionObject">SceneObject::UnionObject</a>
+       <li> <a href="ILT_tutorial.html#SceneObject::RenderObject">SceneObject::RenderObject</a>
+       <li> <a href="ILT_tutorial.html#SceneObject::TransformObject">SceneObject::TransformObject</a>
+       <li> <a href="ILT_tutorial.html#SceneObject::TextObject">SceneObject::TextObject</a>
+  </ul>
 </ul>
 
 <hr>
 <h3> <a name="Basics"> Basics </a></h3>
 
-Colours are specified by strings, such as "red", "green", "dim_gray".
+Colours are specified by strings, such as "red", "green", "dim_gray".  Many
+methods are ``set or get''-type methods meaning that if no argument is
+given, they simply return some parameter of an object.  If an argument
+is given, then they first set the parameter of that object, then
+return it.
 
 <hr>
 <h3> <a name="ImageLayout"> ImageLayout Object </a></h3>
@@ -523,6 +555,11 @@ With three arguments, sets the view direction.
 <hr>
 <h3> <a name="SceneObject"> SceneObject </a> </h3>
 
+The following section describe each SceneObject derived class.
+
+<hr>
+<h4> <a name="SceneObject::GeometricObject"> SceneObject::GeometricObject </a> </h4>
+
 <b><pre>
 new ILT::GeometricObject( $filename )
 </pre></b>
@@ -541,6 +578,8 @@ Normally, this method would not be needed, as the new() method is
 usually sufficient.
 
 <hr>
+<h4> <a name="SceneObject::PlaneObject"> SceneObject::PlaneObject </a> </h4>
+
 <b><pre>
 new           ILT::PlaneObject( $xn, $yn, $zn, $xo, $yo, $zo )
 new_canonical ILT::PlaneObject( $axis, $origin )
@@ -565,6 +604,8 @@ Sets or gets the plane normal and origin, respectively, of the plane
 object.  Normally not need, as these are specified upon creation.
 
 <hr>
+<h4> <a name="SceneObject::VolumeObject"> SceneObject::VolumeObject </a> </h4>
+
 <b><pre>
 new  ILT::VolumeObject( $filename, $interpolation )
 </pre></b>
@@ -585,6 +626,8 @@ Routines to set or get the parameters of the VolumeObject.  Normally
 not needed, as these are specified upon creation.
 
 <hr>
+<h4> <a name="SceneObject::ColourObject"> SceneObject::ColourObject </a> </h4>
+
 <b><pre>
 new  ILT::ColourObject( $sub_object, $volume_object, $method,
                         $low_limit, $high_limit )
@@ -637,6 +680,8 @@ fully opaque, uses exactly the colour computed from the volume,
 whereas a value of 0, ignores the colour computed from the volume.
 
 <hr>
+<h4> <a name="SceneObject::IntersectionObject"> SceneObject::IntersectionObject </a> </h4>
+
 <b><pre>
 new ILT::IntersectionObject( $sub_object1, $sub_object2 )
 </pre></b>
@@ -653,6 +698,7 @@ not needed, as these are specified upon creation.  $index must be
 either 0 or 1.
 
 <hr>
+<h4> <a name="SceneObject::UnionObject"> SceneObject::UnionObject </a> </h4>
 <b><pre>
 new ILT::UnionObject( $sub_object1, $sub_object2, ... )
 </pre></b>
@@ -673,6 +719,8 @@ Sets or gets the sub-objects of the UnionObject.  Normally
 not needed, as these are specified upon creation.
 
 <hr>
+<h4> <a name="SceneObject::RenderObject"> SceneObject::RenderObject </a> </h4>
+
 <b><pre>
 new ILT::RenderObject( $sub_object )
 </pre></b>
@@ -710,6 +758,8 @@ Sets or gets the value of the lighting-state parameter, which controls whether
 the sub-object is rendered with lighting or not.
 
 <hr>
+<h4> <a name="SceneObject::TransformObject"> SceneObject::TransformObject </a> </h4>
+
 <b><pre>
 new ILT::TransformObject( $sub_object, $transform_filename )
 </pre></b>
@@ -730,6 +780,50 @@ ILT::TransformObject::transform( $transform_filename )
 
 Sets or gets the transform filename of the TransformObject.  Normally
 not needed, as this is specified upon creation.
+
+<hr>
+<h4> <a name="SceneObject::TextObject"> SceneObject::TextObject </a> </h4>
+
+<b><pre>
+new ILT::TextObject( $string, $x_pos, $y_pos [,$font] )
+</pre></b>
+
+Creates a text object positioned at ($x_pos, $y_pos) in viewport coordinates
+(between 0 and 1).  The font is any X font valid to be passed to
+Image Magick's convert.
+
+<b><pre>
+ILT::TextObject::string( $text_string )
+</pre></b>
+
+Sets or gets the value of the text string to be displayed.
+
+<b><pre>
+ILT::TextObject::viewport_position( $x_pos, $y_pos )
+</pre></b>
+
+Sets or gets the viewport position of the text.
+
+<b><pre>
+ILT::TextObject::font( @pos )
+</pre></b>
+
+Sets or gets the font for the text object.
+
+<b><pre>
+ILT::TextObject::colour( @pos )
+</pre></b>
+
+Sets or gets the display colour for the text object.
+
+<b><pre>
+ILT::TextObject::horizontal_alignment( @pos )
+ILT::TextObject::vertical_alignment( @pos )
+</pre></b>
+
+Sets or gets the alignment of the text.  Valid values for horizontal
+are Align_left, Align_centre, and Align_right.  Valid values for vertical
+are Align_bottom, Align_centre, and Align_top.
 
 </body>
 </html>

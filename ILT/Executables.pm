@@ -20,7 +20,7 @@
                               &get_executable_list );
     }
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/Executables.pm,v 1.4 1998-08-05 13:56:32 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/Executables.pm,v 1.5 1998-09-18 13:30:03 david Exp $';
 
 #--------------------------------------------------------------------------
 #  Define all the executables or shell commands used by the library
@@ -35,11 +35,14 @@ my( %executables ) =
     place_images            => "place_images",
     plane_polygon_intersect => "plane_polygon_intersect",
     transform_objects       => "transform_objects",
+    find_image_bounding_box => "find_image_bounding_box",
 
     xfmconcat               => "xfmconcat",          #--- /usr/local/mni/bin
 
     convert                 => "convert",            #--- in path
     mogrify                 => "mogrify",
+    imgcopy                 => "imgcopy",
+    imginfo                 => "imginfo",
 
     cp                      => "/bin/cp",            #--- shell
     touch                   => "touch",

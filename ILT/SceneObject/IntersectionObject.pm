@@ -39,7 +39,7 @@
 
     @ISA = ( "ILT::SceneObject" );
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/IntersectionObject.pm,v 1.5 1998-05-22 14:44:45 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/IntersectionObject.pm,v 1.6 1998-09-18 13:30:01 david Exp $';
 
 #--------------------------------------------------------------------------
 # name of this class
@@ -313,6 +313,31 @@ sub  get_plane_intersection( $$$$ )
 
     fatal_error( "IntersectionObject->get_plane_intersection() " .
                  " not implemented yet" );
+}
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : get_text_image_magick_args
+#@INPUT      : self
+#              viewport_x_size
+#              viewport_y_size
+#@OUTPUT     : 
+#@RETURNS    : text arguments for rendering text to image
+#@DESCRIPTION: 
+#@METHOD     :
+#@GLOBALS    :
+#@CALLS      :  
+#@CREATED    : Jun. 23, 1998    David MacDonald
+#@MODIFIED   :
+#----------------------------------------------------------------------------
+
+sub get_text_image_magick_args( $$$ )
+{
+    my( $self )             =  arg_object( shift, $this_class );
+    my( $viewport_x_size )  =  arg_real( shift, 0, 1e30 );
+    my( $viewport_y_size )  =  arg_real( shift, 0, 1e30 );
+    end_args( @_ );
+
+    return( "" );
 }
 
 #--------------------------------------------------------------------------

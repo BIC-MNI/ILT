@@ -182,7 +182,7 @@
     #   Create a header object
     #-----------------------------------------------------------------
 
-    $header = ILT::TextObject->new( "Header: Output of test_layout.pl",
+    $header = ILT::TextObject->new( "Output of test_layout.pl",
                                     .5, .5 );
     $header->font( "-adobe-helvetica-medium-r-normal--34-240-100-100-p-176-iso8859-1" );
     $header->colour( "yellow" );

@@ -36,7 +36,7 @@
     use      ILT::Executables;
     use      ILT::LayoutInclude;
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/ImageLayout.pm,v 1.10 1998-05-22 14:44:35 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/ImageLayout.pm,v 1.11 1998-09-18 13:30:02 david Exp $';
 
 #--- Define the name of this class
 
@@ -69,6 +69,8 @@ sub new( $ )
     $self->{N_ROWS} = 0;
     $self->{N_COLS} = 0;
     $self->{IMAGES} = [];
+    $self->{HEADER} = new ILT::TextObject( "", 0, 0 );
+    $self->{FOOTER} = new ILT::TextObject( "", 0, 0 );
     $self->horizontal_white_space( 0 );
     $self->vertical_white_space( 0 );
     $self->white_space_colour( "black" );
@@ -264,6 +266,60 @@ sub white_space_colour( $@ )
 }
 
 #----------------------------- MNI Header -----------------------------------
+#@NAME       : header
+#@INPUT      : self
+#              text_object  (optional)
+#@OUTPUT     : 
+#@RETURNS    : current value (text_object)
+#@DESCRIPTION: Returns the current value of the text header.  With the optional
+#              parameter present, sets the value.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Jun. 19, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
+sub  header( $@ )
+{
+    my( $self ) = arg_object( shift, $this_class );
+    my( $header_text ) = opt_arg_object( shift, "ILT::SceneObject" );
+    end_args( @_ );
+
+    if( defined( $header_text ) )
+        { $self->{HEADER} = $header_text; }
+
+    return( $self->{HEADER} );
+}
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : footer
+#@INPUT      : self
+#              text_object  (optional)
+#@OUTPUT     : 
+#@RETURNS    : current value (text_object)
+#@DESCRIPTION: Returns the current value of the text footer.  With the optional
+#              parameter present, sets the value.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : Jun. 19, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
+sub  footer( $@ )
+{
+    my( $self ) = arg_object( shift, $this_class );
+    my( $footer_text ) = opt_arg_object( shift, "ILT::SceneObject" );
+    end_args( @_ );
+
+    if( defined( $footer_text ) )
+        { $self->{FOOTER} = $footer_text; }
+
+    return( $self->{FOOTER} );
+}
+
+#----------------------------- MNI Header -----------------------------------
 #@NAME       : is_in_grid_mode
 #@INPUT      : self
 #@OUTPUT     : 
@@ -362,11 +418,13 @@ sub image_info( $$@ )
 #@MODIFIED   : 
 #----------------------------------------------------------------------------
 
-sub   compute_image_sizes_and_positions( $$$$$$$ )
+sub   compute_image_sizes_and_positions( $$$$$$$$$ )
 {
     my( $self       )    = arg_object( shift, $this_class );
     my( $full_x_size )   = arg_int( shift, 0, 1e30 );
     my( $full_y_size )   = arg_int( shift, 0, 1e30 );
+    my( $header_size )   = arg_int( shift, 0, 1e30 );
+    my( $footer_size )   = arg_int( shift, 0, 1e30 );
     my( $x_pos )         = arg_array_ref( shift );
     my( $y_pos )         = arg_array_ref( shift );
     my( $x_sizes )       = arg_array_ref( shift );
@@ -377,7 +435,8 @@ sub   compute_image_sizes_and_positions( $$$$$$$ )
         $hor_white_space, $vert_white_space,
         $width, $height, @max_world_height, @max_world_width,
         $total_height, $total_width, $x_scale, $y_scale, $scale,
-        $x_offset, $y_offset, $current_x, $current_y );
+        $x_offset, $y_offset, $current_x, $current_y,
+        $used_x_size, $used_y_size );
 
     if( $self->is_in_grid_mode() )
     {
@@ -385,6 +444,10 @@ sub   compute_image_sizes_and_positions( $$$$$$$ )
         $vert_white_space = $self->vertical_white_space();
         $n_rows = $self->n_rows();
         $n_cols = $self->n_cols();
+
+        $used_x_size = $full_x_size - $header_size - $footer_size -
+                       ($n_rows-1) * $vert_white_space;
+        $used_y_size = $full_y_size - ($n_cols-1) * $hor_white_space;
 
         #-----------------------------------------------------------------------
         # compute the maximum world height of an image for each row and the
@@ -440,26 +503,20 @@ sub   compute_image_sizes_and_positions( $$$$$$$ )
         # coordinates can be computed
         #----------------------------------------------------------------------
 
-        if( $full_x_size < 1 )   #--- no x size specified
+        if( $used_x_size < 1 )   #--- no x size specified
         {
-            $y_size = $full_y_size - ($n_rows - 1) * $vert_white_space;
-            $scale = $y_size / $total_height;
-            $full_x_size = int( $scale * $total_width + 0.5 ) + 
-                           ($n_cols - 1) * $hor_white_space;
+            $scale = $used_y_size / $total_height;
+            $used_x_size = int( $scale * $total_width + 0.5 );
         }
-        elsif( $full_y_size < 1 )
+        elsif( $used_y_size < 1 )
         {
-            $x_size = $full_x_size - ($n_cols - 1) * $hor_white_space;
-            $scale = $x_size / $total_width;
-            $full_y_size = int( $scale * $total_height + 0.5 ) + 
-                           ($n_rows - 1) * $vert_white_space;
+            $scale = $used_x_size / $total_width;
+            $used_y_size = int( $scale * $total_height + 0.5 );
         }
         else
         {
-            $x_size = $full_x_size - ($n_cols - 1) * $hor_white_space;
-            $y_size = $full_y_size - ($n_rows - 1) * $vert_white_space;
-            $x_scale = $x_size / $total_width;
-            $y_scale = $y_size / $total_height;
+            $x_scale = $used_x_size / $total_width;
+            $y_scale = $used_y_size / $total_height;
 
             #-----------------------------------------------------------------
             # due to aspect differences, choose the smaller scale
@@ -476,17 +533,15 @@ sub   compute_image_sizes_and_positions( $$$$$$$ )
         # other positive
         #----------------------------------------------------------------------
 
-        $x_offset = ($full_x_size - $scale * $total_width -
-                      ($n_cols-1) * $hor_white_space) / 2;
-        $y_offset = ($full_y_size - $scale * $total_height -
-                      ($n_rows-1) * $vert_white_space) / 2;
+        $x_offset = ($used_x_size - $scale * $total_width) / 2;
+        $y_offset = ($used_y_size - $scale * $total_height) / 2;
 
         #----------------------------------------------------------------------
         # Now we can step through the rows and columns and assign positions
         # and sizes
         #----------------------------------------------------------------------
 
-        $current_y = $y_offset;
+        $current_y = $footer_size + $y_offset;
         for( $row = 0;  $row < $n_rows;  ++$row )
         {
             #------------------------------------------------------------------
@@ -544,6 +599,10 @@ sub   compute_image_sizes_and_positions( $$$$$$$ )
 
             $current_y += $height + $vert_white_space;
         }
+
+        $full_x_size = $used_x_size + ($n_cols-1) * $hor_white_space;
+        $full_y_size = $used_y_size + ($n_rows-1) * $vert_white_space +
+                       $header_size + $footer_size;
     }
     else
     {
@@ -585,7 +644,7 @@ sub generate_image
 
     my( $image_index, @x_pos, @y_pos, @x_size, @y_size,
         @tmp_image_files, $white_space_colour, $layout_args,
-        $tmp_filename );
+        $tmp_filename, $header, $footer, $tmp_file, $pos );
 
     #-------------------------------------------------------------------------
     # foreach sub-image, ask the associated view to compute any view
@@ -604,8 +663,11 @@ sub generate_image
     # assign the sizes and positions of the sub-images within the montage
     #-------------------------------------------------------------------------
 
+    $header = $self->header();
+    $footer = $self->footer();
     ($full_x_size, $full_y_size ) = $self->compute_image_sizes_and_positions(
                              $full_x_size, $full_y_size,
+                             2 * $header->height(), 2 * $footer->height(),
                              \@x_pos, \@y_pos, \@x_size, \@y_size );
 
     #-------------------------------------------------------------------------
@@ -643,6 +705,35 @@ sub generate_image
     }
 
     #-------------------------------------------------------------------------
+    # generate the header if necessary
+    #-------------------------------------------------------------------------
+
+    $white_space_colour = $self->{WHITE_SPACE_COLOUR};
+
+    if( $header->height() > 0 )
+    {
+        $tmp_file = get_tmp_file( "rgb" );
+        @tmp_image_files = ( @tmp_image_files, $tmp_file );
+        $header->create_text_image_file( $tmp_file, $white_space_colour,
+                                         $full_x_size, 2 * $header->height );
+        $pos = $full_y_size - 2 * $header->height();
+        $layout_args = $layout_args . " $tmp_file 0 $pos ";
+    }
+
+    #-------------------------------------------------------------------------
+    # generate the footer if necessary
+    #-------------------------------------------------------------------------
+
+    if( $footer->height() > 0 )
+    {
+        $tmp_file = get_tmp_file( "rgb" );
+        @tmp_image_files = ( @tmp_image_files, $tmp_file );
+        $footer->create_text_image_file( $tmp_file, $white_space_colour,
+                                         $full_x_size, 2 * $footer->height );
+        $layout_args = $layout_args . " $tmp_file 0 0 ";
+    }
+
+    #-------------------------------------------------------------------------
     # delete any temporary geometry created by the scene objects
     #-------------------------------------------------------------------------
 
@@ -664,9 +755,7 @@ sub generate_image
     # place the N_IMAGES sub-images into a single file: $filename
     #-------------------------------------------------------------------------
 
-    $white_space_colour = $self->{WHITE_SPACE_COLOUR};
-
-    run_executable( "place_images", "$tmp_filename $white_space_colour " .
+    run_executable( "place_images", "$tmp_filename '$white_space_colour' " .
                     " -size $full_x_size $full_y_size $layout_args" );
 
     if( $tmp_filename ne $filename )
