@@ -4,7 +4,8 @@
 
     use      strict;
     use      vars qw( @ISA );
-    use      SceneObject;
+    use      ImageInclude;
+    use      Utils;
     @ISA = ( "SceneObject" );
 
 sub new
@@ -40,49 +41,36 @@ sub make_ray_trace_args
 
     $filename = $self->{FILENAME};
 
-    return( "$filename", () );
+    return( "$filename" );
 }
 
-sub get_bounding_box
+sub compute_bounding_view
 {
     my( $self, $view_direction_ref, $up_direction_ref ) = @_;
 
-    my( $filename, @view_direction, @up_direction, $command,
-        $x_centre, $y_centre, $z_centre, $out,
-        $x_min, $x_max, $y_min, $y_max, $z_min, $z_max );
+    return( compute_geometry_file_bounding_view( $self->{FILENAME},
+                                                 $view_direction_ref,
+                                                 $up_direction_ref ) );
+}
 
-    $filename = $self->{FILENAME};
-    @view_direction = @$view_direction_ref;
-    @up_direction = @$up_direction_ref;
+sub  get_plane_intersection
+{
+    my( $self, $plane_origin_ref, $plane_normal_ref, $output_file ) = @_;
 
-    $command = sprintf( "compute_bounding_view %s %g %g %g %g %g %g",
-                        $filename,
-                        $view_direction[0],
-                        $view_direction[1],
-                        $view_direction[2],
-                        $up_direction[0],
-                        $up_direction[1],
-                        $up_direction[2] );
+    my( @plane_origin, @plane_normal, $command );
 
-    print( "$command\n" );
-    $out = `$command`;
+    @plane_origin = @$plane_origin_ref;
+    @plane_normal = @$plane_normal_ref;
 
-    $out =~ /Centre:\s+(\S+)\s+(\S+)\s+(\S+)/m;
-    $x_centre = $1;
-    $y_centre = $2;
-    $z_centre = $3;
+#--- the program plane_polygon_intersect needs to be rewritten to be
+#--- plane_object_intersect
 
-    $out =~ /Bounding_box:\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)/m;
+    $command = sprintf( "plane_polygon_intersect %s %s %g %g %g %g %g %g",
+                        $self->filename(), $output_file,
+                        $plane_normal[0], $plane_normal[1], $plane_normal[2],
+                        $plane_origin[0], $plane_origin[1], $plane_origin[2] );
 
-    $x_min = $1;
-    $x_max = $2;
-    $y_min = $3;
-    $y_max = $4;
-    $z_min = $5;
-    $z_max = $6;
-
-    return( $x_centre, $y_centre, $z_centre,
-            $x_min, $x_max, $y_min, $y_max, $z_min, $z_max );
+    system_call( $command );
 }
 
 1;
