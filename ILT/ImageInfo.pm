@@ -1,70 +1,74 @@
 #!/usr/local/bin/perl5 -w
 
-    package  ImageInfo;
+    package  ILT::ImageInfo;
 
     use      strict;
-    use      View;
-    use      Utils;
-    use      SceneObject;
-    use      SceneObject::GeometricObject;
-    use      SceneObject::PlaneObject;
-    use      SceneObject::IntersectionObject;
+    use      ILT::LayoutUtils;
+    use      ILT::LayoutInclude;
 
-    my( $ray_trace_exec ) = "ray_trace";
+my( $this_class ) = "ILT::ImageInfo";
+my( $ray_trace_exec ) = "ray_trace";
 
-sub new
+sub new( $$$ )
 {
-    my( $proto, $scene_object, $view ) = @_;
+    my( $proto )        = shift;
+    my( $scene_object ) = arg_object( shift, "ILT::SceneObject" );
+    my( $view )         = arg_object( shift, "ILT::View" );
 
     my $class = ref($proto) || $proto;
     my $self  = {};
 
-    $self->{OBJECT} = $scene_object;
-    $self->{VIEW} = $view->copy();
-
     bless ($self, $class);
-    return $self;
+
+    $self->scene_object( $scene_object );
+    $self->scene_view( $view );
+
+    return( $self );
 }
 
-sub scene_object
+sub scene_object( $@ )
 {
-    my( $self, $scene_object ) = @_;
+    my( $self )         = arg_object( shift, $this_class );
+    my( $scene_object ) = opt_arg_object( shift, "ILT::SceneObject" );
+    end_args( @_ );
 
     if( defined($scene_object) )
-    {
-        $self->{OBJECT} = $scene_object;
-    }
+        { $self->{OBJECT} = $scene_object; }
 
     return( $self->{OBJECT} );
 }
 
-sub scene_view
+sub scene_view( $@ )
 {
-    my( $self, $view ) = @_;
+    my( $self ) = arg_object( shift, $this_class );
+    my( $view ) = opt_arg_object( shift, "ILT::View" );
+    end_args( @_ );
 
     if( defined($view) )
-    {
-        $self->{VIEW} = $view->copy();
-    }
+        { $self->{VIEW} = $view; }
 
     return( $self->{VIEW} );
 }
 
-sub background_colour
+sub background_colour( $@ )
 {
-    my( $self, $background_colour ) = @_;
+    my( $self )              = arg_object( shift, $this_class );
+    my( $background_colour ) = opt_arg_string( shift );
+    end_args( @_ );
 
     if( defined($background_colour) )
-    {
-        $self->{BACKGROUND_COLOUR} = $background_colour;
-    }
+        { $self->{BACKGROUND_COLOUR} = $background_colour; }
 
     return( $self->{BACKGROUND_COLOUR} );
 }
 
-sub create_image
+sub create_image( $$$$$ )
 {
-    my( $self, $filename, $x_size, $y_size, $view ) = @_;
+    my( $self )       = arg_object( shift, $this_class );
+    my( $filename )   = arg_string( shift );
+    my( $x_size )     = arg_int( shift, 1, 1e30 );
+    my( $y_size )     = arg_int( shift, 1, 1e30 );
+    my( $view )       = arg_object( shift, "ILT::View" );
 
     my( $geom_args, $view_args, $command,
         @view_direction, @up_direction, @eye, $window_width, $bg );
@@ -74,7 +78,7 @@ sub create_image
     @view_direction = $view->view_direction();
     @up_direction = $view->up_direction();
     @eye = $view->eye_position();
-    $window_width = $view->window_width( $y_size, $x_size );
+    $window_width = $view->window_width( $y_size / $x_size );
 
     $view_args = sprintf( "-ortho -view %g %g %g %g %g %g " .
                           " -eye %g %g %g " .
