@@ -74,4 +74,12 @@ sub  get_default_view( $ )
     fatal_error( "called get_default_view() for base class\n" );
 }
 
+sub DESTROY()
+{
+    my( $self )                = arg_object( shift, $this_class );
+    end_args( @_ );
+
+    $self->delete_temp_geometry_file();
+}
+
 1;

@@ -19,7 +19,7 @@
         # as well as any optionally exported functions
 
         @EXPORT_OK      = ();
-        @EXPORT         = qw(
+        @EXPORT         = qw( &ILT_version
                           &compute_geometry_file_bounding_view
                           &add_vectors
                           &cross_vectors
@@ -54,6 +54,13 @@
                           &N_view_enums
                         );
     }
+
+#---------------
+
+sub ILT_version()
+{
+    return( "0.1" );
+}
 
 #---------------
 
