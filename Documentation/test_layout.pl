@@ -13,6 +13,7 @@
 
     use ILT::LayoutInclude;
     use ILT::LayoutUtils;
+#    use ILT::ProgUtils;
 
     my( $layout, $n_rows, $n_cols, @volume_filenames, @slice_pos,
         $scene_object, $view, $image_info, $row, $col, @obj_files, @view_dirs,
@@ -166,7 +167,6 @@
                ILT::UnionObject->new( $colour_object, $surface_cross_section );
 
             $image_info = ILT::ImageInfo->new( $scene_object, $view[$col] );
-$image_info = ILT::ImageInfo->new( $scene_object, ILT::View->new() );
             $image_info->background_colour( "black" );
 
             #-----------------------------------------------------------------
@@ -182,7 +182,7 @@ $image_info = ILT::ImageInfo->new( $scene_object, ILT::View->new() );
     #   Render the images and create the output file
     #-----------------------------------------------------------------
 
-    $layout->generate_image( "output.rgb", 1100, 0 );
+    $layout->generate_image( "test_layout.rgb", 1100, 0 );
 
 #-----------------------------------------------------------------
 #   Define the view based on some scene object other than that being
@@ -191,10 +191,9 @@ $image_info = ILT::ImageInfo->new( $scene_object, ILT::View->new() );
 
 sub  set_clipped_view( $$$ )
 {
-    my( $view )        = arg_object( shift, "ILT::View" );
-    my( $object_defining_view ) = arg_object( shift, "ILT::SceneObject" );
-    my( $extra_space_around_bounding_object ) = arg_real( shift, 0, 1e30 );
-    end_args( @_ );
+    my( $view )                               = shift;
+    my( $object_defining_view )               = shift;
+    my( $extra_space_around_bounding_object ) = shift;
 
     my( $view_copy, @bbox );
 

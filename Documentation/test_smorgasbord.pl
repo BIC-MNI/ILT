@@ -12,6 +12,7 @@
 
     use ILT::LayoutInclude;
     use ILT::LayoutUtils;
+    use ILT::ProgUtils;
 
 #-------------------------------------------------------
 #
@@ -22,7 +23,7 @@
 #
 #--------------------------------------------------------
 
-    $n_rows = 3;
+    $n_rows = 4;
     $n_cols = 4;
     $layout = ILT::ImageLayout->new_grid( $n_rows, $n_cols );
 
@@ -223,10 +224,10 @@
     $plane_object1 = ILT::PlaneObject->new_canonical( Sagittal_axis, -50 );
     $plane_object2 = ILT::PlaneObject->new_canonical( Sagittal_axis, -25 );
     $plane_object3 = ILT::PlaneObject->new_canonical( Sagittal_axis, 0 );
-    $plane_object4 = ILT::PlaneObject->new_canonical( Sagittal_axis, 25 );
-    $plane_object5 = ILT::PlaneObject->new_canonical( Sagittal_axis, 50 );
+    $plane_object4 = ILT::PlaneObject->new_canonical( Coronal_axis, 0 );
+    $plane_object5 = ILT::PlaneObject->new_canonical( Transverse_axis, 0 );
     $surface_object = ILT::GeometricObject->new( "Data/surf2.obj" );
-    $view = ILT::View->new_arbitrary( 1, .5, 0, 0, 0, 1 );
+    $view = ILT::View->new_arbitrary( 1, .5, .3, 0, 0, 1 );
 
     $cross1 = ILT::IntersectionObject->new( $plane_object1, $surface_object ),
     $cross2 = ILT::IntersectionObject->new( $plane_object2, $surface_object ),
@@ -238,7 +239,7 @@
                                     $cross5 );
     $render_object = ILT::RenderObject->new( $union );
     $render_object->lighting_state( True );
-    $render_object->line_width( 5 );
+    $render_object->line_width( 2 );
 
     $image_info = ILT::ImageInfo->new( $render_object, $view );
     $layout->image_info( $layout->row_col_to_index(2,0), $image_info );
@@ -348,8 +349,27 @@
 
 #--------------------------------------------------------------------------
 #
+#   image[3][0] is an arbitrarily oriented slice through a volume
+#
+#--------------------------------------------------------------------------
+
+    $plane_object = ILT::PlaneObject->new( 1.0, 2.0, 3.0, 0, 0, 0 );
+    $view = ILT::View->new_arbitrary( 1, 2, 3, 0, 1, 0 );
+    $volume_object = ILT::VolumeObject->new( "Data/volume1.mnc" );
+
+    $scene_object = 
+                  ILT::ColourObject->new_volume_colouring(
+                       ILT::IntersectionObject->new( $plane_object,
+                                                     $volume_object ),
+                       $volume_object, Hot_metal_scale, 50, 150 );
+
+    $image_info = ILT::ImageInfo->new( $scene_object, $view );
+    $layout->image_info( $layout->row_col_to_index(3,0), $image_info );
+
+#--------------------------------------------------------------------------
+#
 #   now generate the images
 #
 #--------------------------------------------------------------------------
 
-    $layout->generate_image( "smorgasbord.rgb", 1100, 0 );
+    $layout->generate_image( "test_smorgasbord.rgb", 1100, 0 );
