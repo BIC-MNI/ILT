@@ -32,6 +32,8 @@
 
     use      strict;
     use      ILT::LayoutUtils;
+    use      ILT::ProgUtils;
+    use      ILT::Executables;
     use      ILT::LayoutInclude;
 
 #--- Define the name of this class
@@ -515,6 +517,7 @@ sub   compute_image_sizes_and_positions( $$$$$$$ )
                              $self->{IMAGES}[$image_index]->scene_view()->
                                  get_bounding_box_height() );
 
+
                 #--------------------------------------------------------------
                 # compute the position, by centering the image within 
                 # the space alloted for the row or column.
@@ -651,8 +654,8 @@ sub generate_image
 
     $white_space_colour = $self->{WHITE_SPACE_COLOUR};
 
-    system_call( "place_images $filename $white_space_colour " .
-                 " -size $full_x_size $full_y_size $layout_args" );
+    run_executable( "place_images", "$filename $white_space_colour " .
+                    " -size $full_x_size $full_y_size $layout_args" );
 
     #-------------------------------------------------------------------------
     # delete the temporary image files
