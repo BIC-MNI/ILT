@@ -33,6 +33,8 @@
 
     use      strict;
     use      ILT::LayoutUtils;
+    use      ILT::ProgUtils;
+    use      ILT::Executables;
     use      ILT::LayoutInclude;
 
 #--------------------------------------------------------------------------
@@ -40,12 +42,6 @@
 #--------------------------------------------------------------------------
 
 my( $this_class ) = "ILT::ImageInfo";
-
-#--------------------------------------------------------------------------
-# define the executable for ray_trace
-#--------------------------------------------------------------------------
-
-my( $ray_trace_exec ) = "ray_trace";
 
 #----------------------------- MNI Header -----------------------------------
 #@NAME       : new
@@ -200,7 +196,7 @@ sub create_image( $$$$$ )
     my( $y_size )     = arg_int( shift, 1, 1e30 );
     end_args( @_ );
 
-    my( $view, $geom_args, $view_args, $command,
+    my( $view, $geom_args, $view_args, $args,
         @view_direction, @up_direction, @eye, $window_width, $bg );
 
     #--------------------------------------------------------------------------
@@ -237,13 +233,13 @@ sub create_image( $$$$$ )
     if( defined($self->background_colour() ) )
         { $bg = sprintf( "-bg %s", $self->background_colour() ); }
     else
-        { $bg = ""; }
+        { $bg = "-bg black"; }
 
     #--------------------------------------------------------------------------
     # assemble all ray_trace arguments into a single string
     #--------------------------------------------------------------------------
 
-    $command = "$ray_trace_exec -output $filename -nolight $bg " .
+    $args = "-output $filename -nolight $bg " .
                " -size $x_size $y_size " .
                " $view_args " .
                " $geom_args ";
@@ -253,7 +249,7 @@ sub create_image( $$$$$ )
     #--------------------------------------------------------------------------
 
 
-    system_call( $command );
+    run_executable( "ray_trace", $args );
 }
 
 1;

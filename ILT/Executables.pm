@@ -16,7 +16,8 @@
 
         @EXPORT_OK      = ();
         @EXPORT         = qw( &set_executable_path &find_executable 
-                              &run_executable &get_output_of_command );
+                              &run_executable &get_output_of_command
+                              &get_executable_list );
     }
 
 #--------------------------------------------------------------------------
@@ -34,6 +35,8 @@ my( %executables ) =
     transform_objects       => "transform_objects",
 
     xfmconcat               => "xfmconcat",          #--- /usr/local/mni/bin
+
+    convert                 => "convert",            #--- in path
 
     cp                      => "/bin/cp",            #--- shell
     touch                   => "touch",
@@ -90,6 +93,11 @@ sub  find_executable( $ )
     my( $full_path );
 
     $full_path = $executables{$name};
+
+    if( !defined($full_path) )
+    {
+        fatal_error( "Could not find executable for $name\n" );
+    }
 
     if( substr( $full_path, 0, 1 ) ne "/" && $path ne "" )
     {
@@ -157,6 +165,25 @@ sub  get_output_of_command( $$ )
     $output = `$full_path $arguments`;
 
     return( $output );
+}
+
+#----------------------------- MNI Header -----------------------------------
+#@NAME       : get_executable_list
+#@INPUT      : 
+#@OUTPUT     : 
+#@RETURNS    : 
+#@DESCRIPTION: Lists all the executables used by the ILT package.  Not
+#              for general use.
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      :  
+#@CREATED    : May. 22, 1998    David MacDonald
+#@MODIFIED   : 
+#----------------------------------------------------------------------------
+
+sub  get_executable_list()
+{
+    return( values(%executables) );
 }
 
 #---------------- return value for 'use'

@@ -33,6 +33,8 @@
     use      vars  qw(@ISA);
     use      ILT::LayoutInclude;
     use      ILT::LayoutUtils;
+    use      ILT::ProgUtils;
+    use      ILT::Executables;
     @ISA =   ( "ILT::SceneObject" );
 
 #--------------------------------------------------------------------------
@@ -64,7 +66,7 @@ sub new( $$$ )
     end_args( @_ );
 
     my $class = ref($proto) || $proto;
-    my $self  = {};
+    my $self  = $class->SUPER::new();
 
     bless ($self, $class);
 
@@ -178,46 +180,25 @@ sub  get_plane_intersection( $$$$ )
     my( $output_file )       = arg_string( shift );
     end_args( @_ );
 
-    my( @plane_origin, @plane_normal, $command, $n_non_zero, $dim,
-        $axis_name, $which );
+    my( @plane_origin, @plane_normal, $args );
 
     @plane_origin = @$plane_origin_ref;
     @plane_normal = @$plane_normal_ref;
 
     #--------------------------------------------------------------------------
-    # determine whether this is x, y, or z oriented plane or arbitrary
-    #--------------------------------------------------------------------------
-
-    $n_non_zero = 0;
-    for( $dim = 0;  $dim < 3;  ++$dim )
-    {
-        if( $plane_normal[$dim] != 0 )
-            { ++$n_non_zero; $which = $dim; }
-    }
-
-    #--------------------------------------------------------------------------
-    # if arbitrary orientation, cannot handle this case yet
-    #--------------------------------------------------------------------------
-
-    if( $n_non_zero != 1 )
-    {
-        printf( "Normal: %g %g %g\n", $plane_normal[0], $plane_normal[1],
-                $plane_normal[2] );
-        fatal_error( "get_plane_intersection() not implemented yet for ".
-                     " non-canonical orientations\n" );
-    }
-
-    #--------------------------------------------------------------------------
     # make the slice geometry (quadrilateral) for the intersection
     #--------------------------------------------------------------------------
 
-    $axis_name = ( "x", "y", "z" )[$which];
+    $args = sprintf( "%s %s %g %g %g %g %g %g",
+                     $self->filename(), $output_file,
+                     $plane_origin[0],
+                     $plane_origin[1],
+                     $plane_origin[2],
+                     $plane_normal[0],
+                     $plane_normal[1],
+                     $plane_normal[2] );
 
-    $command = sprintf( "make_slice %s %s %s w %g 2 2",
-                        $self->filename(), $output_file, $axis_name,
-                        $plane_origin[$which] );
-
-    system_call( $command );
+    run_executable( "make_slice", $args );
 }
 
 #--------------------------------------------------------------------------

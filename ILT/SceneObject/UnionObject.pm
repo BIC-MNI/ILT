@@ -33,6 +33,7 @@
     use      vars  qw(@ISA);
     use      ILT::LayoutInclude;
     use      ILT::LayoutUtils;
+    use      ILT::ProgUtils;
     use      UNIVERSAL qw(isa);
     @ISA =   ( "ILT::SceneObject" );
 
@@ -65,7 +66,7 @@ sub new( $$@ )
     end_args( @_ );
 
     my $class = ref($proto) || $proto;
-    my $self  = {};
+    my $self  = $class->SUPER::new();
     my $object;
 
     bless ($self, $class);
@@ -208,7 +209,7 @@ sub  get_plane_intersection( $$$$ )
     #--------------------------------------------------------------------------
 
     unlink( $output_file );
-    system_call( "touch $output_file" );
+    run_executable( "touch", $output_file );
 
     foreach $sub_object ( @{$self->{SUB_OBJECTS}} )
     {
@@ -223,7 +224,7 @@ sub  get_plane_intersection( $$$$ )
         # add the plane intersection to the output file
         #----------------------------------------------------------------------
 
-        system_call( "cat $tmp_file >> $output_file" );
+        run_executable( "cat", "$tmp_file >> $output_file" );
     }
 
     delete_tmp_file( $tmp_file );

@@ -33,7 +33,9 @@
     use      strict;
     use      vars qw( @ISA );
     use      ILT::LayoutInclude;
+    use      ILT::Executables;
     use      ILT::LayoutUtils;
+    use      ILT::ProgUtils;
     @ISA = ( "ILT::SceneObject" );
 
 #--------------------------------------------------------------------------
@@ -63,7 +65,7 @@ sub new( $$ )
     end_args();
 
     my $class = ref($proto) || $proto;
-    my $self  = {};
+    my $self  = $class->SUPER::new();
 
     bless ($self, $class);
 
@@ -189,12 +191,12 @@ sub  get_plane_intersection( $$$$ )
 #--- the program plane_polygon_intersect needs to be rewritten to be
 #--- plane_object_intersect
 
-    $command = sprintf( "plane_polygon_intersect %s %s %g %g %g %g %g %g",
+    $command = sprintf( "%s %s %g %g %g %g %g %g",
                         $self->filename(), $output_file,
                         $plane_normal[0], $plane_normal[1], $plane_normal[2],
                         $plane_origin[0], $plane_origin[1], $plane_origin[2] );
 
-    system_call( $command );
+    run_executable( "plane_polygon_intersect", $command );
 }
 
 #----------------------------- MNI Header -----------------------------------

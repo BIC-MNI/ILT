@@ -33,6 +33,7 @@
     use      vars  qw(@ISA);
     use      ILT::LayoutInclude;
     use      ILT::LayoutUtils;
+    use      ILT::ProgUtils;
     @ISA =   ( "ILT::SceneObject" );
 
 #--------------------------------------------------------------------------
@@ -72,7 +73,7 @@ sub new( $$$$$$$ )
     end_args( @_ );
 
     my $class = ref($proto) || $proto;
-    my $self  = {};
+    my $self  = $class->SUPER::new();
 
     bless ($self, $class);
 

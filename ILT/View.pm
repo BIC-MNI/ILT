@@ -30,6 +30,7 @@
 
     use      strict;
     use      ILT::LayoutUtils;
+    use      ILT::ProgUtils;
 
 #--------------------------------------------------------------------------
 # define the class name
@@ -615,6 +616,11 @@ sub _check_compute_view_orientation
 
         ( $x_view, $y_view, $z_view, $x_up, $y_up, $z_up ) =
                                        $scene_object->get_default_view();
+
+        if( $x_view == 0 && $y_view == 0 && $z_view == 0 )
+        {
+            fatal_error( "Cannot compute a default view for this scene\n" );
+        }
 
         $self->_set_view_direction( $x_view, $y_view, $z_view );
         $self->_set_up_direction( $x_up, $y_up, $z_up );

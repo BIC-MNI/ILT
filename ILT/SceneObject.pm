@@ -4,12 +4,13 @@
 
     use      strict;
     use      ILT::LayoutUtils;
+    use      ILT::ProgUtils;
 
 my( $this_class ) = "ILT::SceneObject";
 
 sub new( $ )
 {
-    my( $proto ) = @_;
+    my( $proto ) = arg_any( shift );
     end_args( @_ );
 
     my $class = ref($proto) || $proto;
@@ -63,6 +64,14 @@ sub  compute_bounding_view( $$$$ )
     end_args( @_ );
 
     fatal_error( "called compute_bounding_view() for base class\n" );
+}
+
+sub  get_default_view( $ )
+{
+    my( $self )                = arg_object( shift, $this_class );
+    end_args( @_ );
+
+    fatal_error( "called get_default_view() for base class\n" );
 }
 
 1;

@@ -34,6 +34,7 @@
     use      vars  qw(@ISA);
     use      ILT::LayoutInclude;
     use      ILT::LayoutUtils;
+    use      ILT::ProgUtils;
     use      ILT::SceneObject::OneSubObject;
     @ISA =   ( "ILT::OneSubObject" );
 

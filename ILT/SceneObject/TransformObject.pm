@@ -33,6 +33,8 @@
     use      vars  qw(@ISA);
     use      ILT::LayoutInclude;
     use      ILT::LayoutUtils;
+    use      ILT::ProgUtils;
+    use      ILT::Executables;
     use      ILT::SceneObject::OneSubObject;
     @ISA =   ( "ILT::OneSubObject" );
 
@@ -189,7 +191,7 @@ sub  get_plane_intersection( $$$$ )
     # then transform the resulting geometry by the transform
     #--------------------------------------------------------------------------
 
-    system( "transform_objects $tmp_file $transform $output_file" );
+    run_executable( "transform_objects", "$tmp_file $transform $output_file" );
 
     delete_tmp_file( $tmp_file );
 }
@@ -229,9 +231,9 @@ sub compute_bounding_view( $$$$ )
     if( defined( $transform ) && $transform ne "" )
     {
         $tmp_transform = get_tmp_file( "xfm" );
-        $command = sprintf( "xfmconcat -clobber %s %s %s",
+        $command = sprintf( "-clobber %s %s %s",
                             $transform, $self->transform(), $tmp_transform );
-        system_call( $command );
+        run_executable( "xfmconcat", $command );
     }
     else
     {

@@ -582,7 +582,8 @@ sub generate_image
     end_args( @_ );
 
     my( $image_index, @x_pos, @y_pos, @x_size, @y_size,
-        @tmp_image_files, $white_space_colour, $layout_args );
+        @tmp_image_files, $white_space_colour, $layout_args,
+        $tmp_filename );
 
     #-------------------------------------------------------------------------
     # foreach sub-image, ask the associated view to compute any view
@@ -649,13 +650,27 @@ sub generate_image
     }
 
     #-------------------------------------------------------------------------
+    # determine if the file is an rgb or must be converted from another type
+    #-------------------------------------------------------------------------
+
+    if( substr( $filename, -4 ) eq ".rgb" )
+        { $tmp_filename = $filename; }
+    else
+        { $tmp_filename = get_tmp_file( "rgb" ); }
+
+    #-------------------------------------------------------------------------
     # place the N_IMAGES sub-images into a single file: $filename
     #-------------------------------------------------------------------------
 
     $white_space_colour = $self->{WHITE_SPACE_COLOUR};
 
-    run_executable( "place_images", "$filename $white_space_colour " .
+    run_executable( "place_images", "$tmp_filename $white_space_colour " .
                     " -size $full_x_size $full_y_size $layout_args" );
+
+    if( $tmp_filename ne $filename )
+    {
+        run_executable( "convert", "$tmp_filename $filename " );
+    }
 
     #-------------------------------------------------------------------------
     # delete the temporary image files

@@ -35,6 +35,7 @@
     use ILT::ImageLayout;
     use ILT::ImageInfo;
     use ILT::View;
+    use ILT::SceneObject;
     use ILT::SceneObject::GeometricObject;
     use ILT::SceneObject::PlaneObject;
     use ILT::SceneObject::IntersectionObject;
