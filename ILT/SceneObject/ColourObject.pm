@@ -4,7 +4,7 @@
 
     use      strict;
     use      vars  qw(@ISA);
-    use      ImageInclude;
+    use      LayoutInclude;
     use      Utils;
     @ISA =   ( "SceneObject" );
 
@@ -161,7 +161,7 @@ sub make_ray_trace_args
 
     $object_args = $self->object_to_colour()->make_ray_trace_args();
 
-    $full_args = "$args $object_args -delete_volume 0";
+    $full_args = "-reverse_order_colouring $args $object_args -delete_volume 0";
 
     return( $full_args );
 }
@@ -177,11 +177,11 @@ sub  get_plane_intersection
 
 sub compute_bounding_view
 {
-    my( $self, $view_direction_ref, $up_direction_ref ) = @_;
+    my( $self, $view_direction_ref, $up_direction_ref, $transform ) = @_;
 
     return( $self->object_to_colour()->compute_bounding_view(
                                             $view_direction_ref,
-                                            $up_direction_ref ) );
+                                            $up_direction_ref, $transform ) );
 }
 
 sub  create_temp_geometry_file

@@ -4,7 +4,7 @@
 
     use      strict;
     use      vars  qw(@ISA);
-    use      ImageInclude;
+    use      LayoutInclude;
     use      Utils;
     @ISA =   ( "SceneObject" );
 

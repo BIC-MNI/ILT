@@ -4,7 +4,7 @@
 
     use      strict;
     use      vars  qw(@ISA);
-    use      ImageInclude;
+    use      LayoutInclude;
     use      Utils;
     @ISA =   ( "SceneObject" );
 
@@ -80,7 +80,7 @@ sub  get_plane_intersection
 
 sub compute_bounding_view
 {
-    my( $self, $view_direction_ref, $up_direction_ref ) = @_;
+    my( $self, $view_direction_ref, $up_direction_ref, $transform ) = @_;
 
     my( $x_min, $x_max, $y_min, $y_max, $z_min, $z_max, $sub_object,
         $sub_x_min, $sub_x_max, $sub_y_min, $sub_y_max,
@@ -93,7 +93,8 @@ sub compute_bounding_view
         ( $sub_x_min, $sub_x_max, $sub_y_min, $sub_y_max,
           $sub_z_min, $sub_z_max ) = 
                     $sub_object->compute_bounding_view( $view_direction_ref,
-                                                        $up_direction_ref );
+                                                        $up_direction_ref,
+                                                        $transform );
 
         if( $first )
         {

@@ -1,10 +1,10 @@
 #!/usr/local/bin/perl5 -w
 
-    package  SceneObject::GeometricObject;
+    package  GeometricObject;
 
     use      strict;
     use      vars qw( @ISA );
-    use      ImageInclude;
+    use      LayoutInclude;
     use      Utils;
     @ISA = ( "SceneObject" );
 
@@ -46,11 +46,12 @@ sub make_ray_trace_args
 
 sub compute_bounding_view
 {
-    my( $self, $view_direction_ref, $up_direction_ref ) = @_;
+    my( $self, $view_direction_ref, $up_direction_ref, $transform ) = @_;
 
     return( compute_geometry_file_bounding_view( $self->{FILENAME},
                                                  $view_direction_ref,
-                                                 $up_direction_ref ) );
+                                                 $up_direction_ref,
+                                                 $transform ) );
 }
 
 sub  get_plane_intersection

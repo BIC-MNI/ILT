@@ -5,7 +5,7 @@
     use      strict;
     use      vars  qw(@ISA);
 
-    use      ImageInclude;
+    use      LayoutInclude;
     use      Utils;
 
     @ISA = ( "SceneObject" );
@@ -35,9 +35,14 @@ sub get_n_sub_objects
     return( scalar( @{$self->{SUB_OBJECTS}} ) );
 }
 
-sub get_sub_object
+sub sub_object
 {
-    my( $self, $object_index ) = @_;
+    my( $self, $object_index, $sub_object ) = @_;
+
+    if( defined( $sub_object ) )
+    {
+        $self->{SUB_OBJECTS}[$object_index] = $sub_object;
+    }
 
     return( $self->{SUB_OBJECTS}[$object_index] );
 }
@@ -77,12 +82,13 @@ sub  delete_temp_geometry_file
 
 sub  compute_bounding_view
 {
-    my( $self, $view_direction_ref, $up_direction_ref ) = @_;
+    my( $self, $view_direction_ref, $up_direction_ref, $transform ) = @_;
 
     $self->create_temp_geometry_file();
 
     return( compute_geometry_file_bounding_view( $self->{TEMP_GEOMETRY_FILE},
-                              $view_direction_ref, $up_direction_ref ) );
+                              $view_direction_ref, $up_direction_ref,
+                              $transform ) );
 }
 
 sub  make_ray_trace_args
