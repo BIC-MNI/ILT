@@ -7,7 +7,7 @@
     use      ILT::LayoutInclude;
     use      ILT::LayoutUtils;
     use      ILT::SceneObject::OneSubObject;
-    @ISA =   ( "ILT::SceneObject::OneSubObject" );
+    @ISA =   ( "ILT::OneSubObject" );
 
 my( $this_class ) = "ILT::RenderObject";
 
@@ -106,53 +106,11 @@ sub make_ray_trace_args( $ )
         }
     }
 
-    $object_args = $self->sub_object()->make_ray_trace_args();
+    $object_args  = $self->SUPER::make_ray_trace_args();
 
     $full_args = "$pre_args $object_args $post_args" ;
 
     return( $full_args );
-}
-
-sub  get_plane_intersection( $$$$ )
-{
-    my( $self )              =  arg_object( shift, $this_class );
-    my( $plane_origin_ref )  =  arg_array_ref( shift, 3 );
-    my( $plane_normal_ref )  =  arg_array_ref( shift, 3 );
-    my( $output_file )       =  arg_string( shift );
-    end_args( @_ );
-
-    $self->sub_object()->get_plane_intersection( $plane_origin_ref,
-                                                 $plane_normal_ref,
-                                                 $output_file );
-}
-
-sub compute_bounding_view( $$$$ )
-{
-    my( $self )                =  arg_object( shift, $this_class );
-    my( $view_direction_ref )  =  arg_array_ref( shift, 3 );
-    my( $up_direction_ref )    =  arg_array_ref( shift, 3 );
-    my( $transform )           =  arg_string( shift );
-    end_args( @_ );
-
-    return( $self->sub_object()->compute_bounding_view(
-                                            $view_direction_ref,
-                                            $up_direction_ref, $transform ) );
-}
-
-sub  create_temp_geometry_file( $ )
-{
-    my( $self )                =  arg_object( shift, $this_class );
-    end_args( @_ );
-
-    $self->sub_object()->create_temp_geometry_file();
-}
-
-sub  delete_temp_geometry_file( $ )
-{
-    my( $self )                =  arg_object( shift, $this_class );
-    end_args( @_ );
-
-    $self->sub_object()->delete_temp_geometry_file();
 }
 
 1;
