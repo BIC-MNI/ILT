@@ -18,7 +18,8 @@
         $scene_object, $view, $image_info, $row, $col, @obj_files, @view_dirs,
         @view, @plane_object, @surface_object, @volume_object,
         $colour_object, $surface_cross_section, @colour_codes,
-        $bounding_object, $clipped_view, $extra_space_around_bounding_object );
+        $bounding_object, $clipped_view, $extra_space_around_bounding_object,
+        $object_defining_view );
 
 #-------------------------------------------------------
 #
@@ -82,6 +83,12 @@
 #   Since clipping is not yet implemented, the following bounding
 #   object specificiation is a temporary hack to allow specifying
 #   a narrower region of interest than the whole volume
+#
+#   Actually, it's not really that much of a hack.  Rather than
+#   letting the view define itself based on the scene to be rendered
+#   it is letting the view defined itself based on some unrelated
+#   scene object which represents the region of interest.  This seems
+#   like a reasonably valid thing to do.
 #-----------------------------------------------------------------
 
     $bounding_object = ILT::GeometricObject->new( "Data/surf2.obj" );
@@ -101,9 +108,12 @@
 #   Temporary modification of view to clip it, this will disappear when
 #   clipping is implemented.  You may comment out this line if not desired
 
+        $object_defining_view = ILT::IntersectionObject->new(
+                                       $plane_object[$col],
+                                       $bounding_object );
+
         set_clipped_view( $view[$col],
-                          $plane_object[$col],
-                          $bounding_object,
+                          $object_defining_view,
                           $extra_space_around_bounding_object );
 
     }
@@ -165,6 +175,7 @@
             $layout->image_info( $layout->row_col_to_index($row,$col),
                                  $image_info );
         }
+last;
     }
 
     #-----------------------------------------------------------------
@@ -173,23 +184,30 @@
 
     $layout->generate_image( "output.rgb", 1000, 900 );
 
+#-----------------------------------------------------------------
+#   Define the view based on some scene object other than that being
+#   rendered.
+#-----------------------------------------------------------------
+
 sub  set_clipped_view( $$$ )
 {
     my( $view )        = arg_object( shift, "ILT::View" );
-    my( $plane )       = arg_object( shift, "ILT::PlaneObject" );
-    my( $clip_object ) = arg_object( shift, "ILT::SceneObject" );
+    my( $object_defining_view ) = arg_object( shift, "ILT::SceneObject" );
     my( $extra_space_around_bounding_object ) = arg_real( shift, 0, 1e30 );
     end_args( @_ );
 
-    my( $view_copy, $clip_cross_section, @bbox );
+    my( $view_copy, @bbox );
 
-    $clip_cross_section = ILT::IntersectionObject->new( $plane, $clip_object );
+#--- make a temporary copy of the view
 
     $view_copy = $view->copy();
-    $view_copy->compute_view_for_object( $clip_cross_section );
 
-#--- explicitly set bounding box, so that it doesn't get automatically
-#--- computed
+#--- define the default view based on the object
+
+    $view_copy->compute_view_for_object( $object_defining_view );
+
+#--- explicitly set bounding box of the view, so that it doesn't get
+#--- automatically computed
 
     @bbox = $view_copy->bounding_box();
 
