@@ -41,6 +41,7 @@ ILT/SceneObject/TransformObject.pm
 ILT/SceneObject/UnionObject.pm
 ILT/SceneObject/VolumeObject.pm
 ILT/View.pm
+script/create_verify_image
 MANIFEST
 Makefile
 Makefile.PL
