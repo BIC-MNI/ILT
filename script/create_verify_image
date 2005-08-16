@@ -1,0 +1,726 @@
+#! /usr/bin/env perl
+#---------------------------------------------------------------------------
+#@COPYRIGHT :
+#             Copyright 1998, Alex P. Zijdenbos
+#             McConnell Brain Imaging Centre,
+#             Montreal Neurological Institute, McGill University.
+#             Permission to use, copy, modify, and distribute this
+#             software and its documentation for any purpose and without
+#             fee is hereby granted, provided that the above copyright
+#             notice appear in all copies.  The author and McGill University
+#             make no representations about the suitability of this
+#             software for any purpose.  It is provided "as is" without
+#             express or implied warranty.
+#---------------------------------------------------------------------------- 
+#$RCSfile: create_verify_image,v $
+#$Revision: 1.1 $
+#$Author: bert $
+#$Date: 2005-08-16 19:05:17 $
+#$State: Exp $
+#---------------------------------------------------------------------------
+
+# TO DO:
+# 
+# *) Allow col specs to change between rows
+# *) Allow for any transparent MINC overlay (not only label vols)
+# *) Allow for different volume ranging methods
+# *) Check all args before processing (e.g., ranging)
+# *) Allow x/y/z specs of slices (in addition to s/c/t)
+# *) Allow for different spelling of gr(a|e)y
+# *) Provide for "intuitive" window/level settings "bright" "dim" etc
+
+use MNI::DataDir;
+use MNI::FileUtilities qw(check_output_dirs check_files test_file);
+use MNI::PathUtilities qw(replace_dir split_path);
+use MNI::Spawn;
+use MNI::Startup;
+use Getopt::Tabular;
+
+use ILT::LayoutInclude;
+use ILT::LayoutUtils;
+
+use strict;
+
+# User-modifiable globals
+my($OutFile);
+my(@Volumes);
+my($Height, $Width) = (0, 0);
+my($ConvertedOutFile) = undef;
+my($BGcolor) = 'black';
+my($BoundingObject) = undef;
+my(%VolumeRanges);
+my(@RowSpec);
+my(@GlobalRowSpec) = ();
+my(@ColSpec) = qw(t-35 t10 t65 s-30 s60 c-90 c-25 c30); 
+my($Transpose) = 0;
+
+# Other globals
+my($Usage, $Help, $ModelDir,
+   $layout, $n_rows, $n_cols,
+   $view, $image_info, $row, $col, @obj_files, @view_dirs,
+   @view, @plane_object, 
+   $surface_cross_section,
+   $bounding_object, $clipped_view, $extra_space_around_bounding_object,
+   $object_defining_view );
+
+Initialize();
+
+#-----------------------------------------------------------------
+#   Create image layout
+#-----------------------------------------------------------------
+
+$layout = ($Transpose) ? 
+  ILT::ImageLayout->new_grid( $n_cols, $n_rows ) : 
+  ILT::ImageLayout->new_grid( $n_rows, $n_cols );
+$layout->horizontal_white_space( 3 );
+$layout->vertical_white_space( 3 );
+$layout->white_space_colour( $BGcolor );
+   
+#-----------------------------------------------------------------
+#   Since clipping is not yet implemented, the following bounding
+#   object specificiation is a temporary hack to allow specifying
+#   a narrower region of interest than the whole volume
+#
+#   Actually, it's not really that much of a hack.  Rather than
+#   letting the view define itself based on the scene to be rendered
+#   it is letting the view defined itself based on some unrelated
+#   scene object which represents the region of interest.  This seems
+#   like a reasonably valid thing to do.
+#-----------------------------------------------------------------
+
+if (defined($BoundingObject)) {
+    $bounding_object = ILT::GeometricObject->new( $BoundingObject );
+    $extra_space_around_bounding_object = 5;
+}
+
+#-----------------------------------------------------------------
+#   Create a slice and view for each column
+#-----------------------------------------------------------------
+
+for( $col = 0;  $col < $n_cols;  ++$col ) {
+    my($plane, $slice, $view) = @{ $ColSpec[$col] };
+
+    $plane_object[$col] = 
+      ILT::PlaneObject->new_canonical($plane, $slice);
+    $view[$col] = ILT::View->new_canonical($view);
+    
+    #   Temporary modification of view to clip it, this will disappear when
+    #   clipping is implemented.  You may comment out this line if not desired
+    
+    if (defined($BoundingObject)) {
+	$object_defining_view = 
+	  ILT::IntersectionObject->new($plane_object[$col], $bounding_object );
+	
+	SetClippedView($view[$col],
+		       $object_defining_view,
+		       $extra_space_around_bounding_object );
+    }
+}
+
+#-----------------------------------------------------------------
+#   Now describe each image in the grid
+#-----------------------------------------------------------------
+
+for( $row = 0;  $row < $n_rows;  ++$row )
+{
+    print "================ Processing row $row =================\n" if ($Verbose);
+
+    #-----------------------------------------------------------------
+    #   Create a volume and surface object(s) for each row
+    #-----------------------------------------------------------------
+
+    my(%colorSpec) = %{ $RowSpec[$row]{color} };
+
+    my($volume_object) = ILT::VolumeObject->new( $RowSpec[$row]{volume} );
+    if ($colorSpec{'type'} eq 'label') {
+	$volume_object->interpolation( Nearest_neighbour_interpolation );
+    }
+
+    my($overlaySpec) = $RowSpec[$row]{overlay};
+    if (defined($overlaySpec)) {
+	my($ovl);
+	foreach $ovl (@$overlaySpec) {
+	    if ($$ovl{'type'} eq 'obj') {
+		if (defined($$ovl{'value'})) {
+		    $$ovl{'file'} = ColorObject($$ovl{'file'}, $$ovl{'value'});
+		}
+		$$ovl{'object'} = ILT::GeometricObject->new($$ovl{'file'});
+	    }
+
+	    if ($$ovl{'type'} eq 'mnc') {
+		if (!defined($$ovl{'value'})) {
+		    $$ovl{'value'} = 0.5;
+		}
+		$$ovl{'object'} = ILT::VolumeObject->new($$ovl{'file'});
+		$$ovl{'object'}->interpolation( Nearest_neighbour_interpolation );
+	    }
+	}
+    }
+
+    for( $col = 0;  $col < $n_cols;  ++$col )
+    {
+	#-----------------------------------------------------------------
+	#   Create the scene hierarchy for one image as a union of:
+	#       a colour-coded intersection of a slice and volume, and
+	#       a cross section of a surface (intersection of slice and
+	#                                     surface)
+	#-----------------------------------------------------------------
+
+	my($slice_object) = ILT::IntersectionObject->new($plane_object[$col],
+							 $volume_object);
+	
+	my($colour_object) = 
+	  ILT::ColourObject->new_volume_colouring($slice_object,
+						  $volume_object, 
+						  $colorSpec{'map'},
+						  $colorSpec{'min'},
+						  $colorSpec{'max'});
+	
+	if (defined($colorSpec{'file'})) {
+	    $colour_object->usercc_filename($colorSpec{'file'});
+	}
+
+	my($scene_object) = $colour_object;
+
+	if (defined($overlaySpec)) {
+	    my(@objovl);
+	    my($ovl);
+	    foreach $ovl (@$overlaySpec) {
+		if ($$ovl{'type'} eq 'obj') {
+		    my($objovl) = 
+		      ILT::IntersectionObject->new($plane_object[$col],$$ovl{'object'});
+		    
+		    if (defined($$ovl{'thick'})) {
+			$objovl = ILT::RenderObject->new($objovl);
+			$objovl->line_width($$ovl{'thick'});
+		    }
+
+		    push(@objovl, $objovl);
+		}
+		
+		if ($$ovl{'type'} eq 'mnc') {
+		    $scene_object = 
+		      ILT::ColourObject->new_volume_colouring($scene_object,
+							      $$ovl{'object'},
+							      Usercc_scale,
+							      0, 255 );
+		    $scene_object->usercc_filename("${ModelDir}labels.map");
+		    $scene_object->under_colour( "transparent" );
+		    $scene_object->opacity( $$ovl{'value'} );
+		}
+	    }
+
+	    if (@objovl) {
+		$scene_object = ILT::UnionObject->new( $scene_object, @objovl );
+	    }
+	}
+	
+	$image_info = ILT::ImageInfo->new( $scene_object, $view[$col] );
+	$image_info->background_colour( $BGcolor );
+	
+	#-----------------------------------------------------------------
+	#   Attach the image info to the layout manager
+	#-----------------------------------------------------------------
+	
+	if ($Transpose) {
+	    $layout->image_info( $layout->row_col_to_index($n_cols - $col - 1, $row),
+				 $image_info );
+	}
+	else {
+	    $layout->image_info( $layout->row_col_to_index($n_rows - $row - 1, $col),
+				 $image_info );
+	}
+    }
+}
+
+#-----------------------------------------------------------------
+#   Render the images and create the output file
+#-----------------------------------------------------------------
+
+$layout->generate_image( $OutFile, $Width, $Height );
+
+if (defined($ConvertedOutFile)) {
+    Spawn("convert $OutFile $ConvertedOutFile");
+}
+
+# ------------------------------ MNI Header ----------------------------------
+#@NAME       : CreateInfoText
+#@INPUT      : 
+#@OUTPUT     : 
+#@RETURNS    : 
+#@DESCRIPTION: 
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      : 
+#@CREATED    : 98/04/16, Alex Zijdenbos
+#@MODIFIED   : 
+#-----------------------------------------------------------------------------
+sub CreateInfoText
+{
+   $Usage = <<USAGE;
+Usage: $ProgramName <out.{rgb|jpg|tif|...}> [<in.mnc> ...] [options]
+       $ProgramName -help
+USAGE
+
+   $Help = <<HELP;
+$ProgramName 
+creates a verification image using David MacDonald\'s ILT library. The default
+output image format is IRIX rgb; however, if the output file name does not have
+a .rgb extension, ImageMagick\'s \`convert\' will be used to convert it. Note
+that the output file and possible input files should be specified before any 
+other options.
+HELP
+
+   Getopt::Tabular::SetHelp ($Help, $Usage);
+}
+
+# ------------------------------ MNI Header ----------------------------------
+#@NAME       : SetupArgTables
+#@INPUT      : 
+#@OUTPUT     : 
+#@RETURNS    : 
+#@DESCRIPTION: 
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      : 
+#@CREATED    : 98/04/16, Alex Zijdenbos
+#@MODIFIED   : 
+#-----------------------------------------------------------------------------
+sub SetupArgTables
+{
+    my (@args) = 
+	(@DefaultArgs,
+	 ["Specific Options", "section"],
+	 ["-background_color", "string", 1, \$BGcolor,
+ 	  "the `white space' color [default: $BGcolor]", "<color>"],
+	 ["-bounding_object", "string", 1, \$BoundingObject,
+ 	  "the bounding object to use for clipping", "<bounds.obj>"],
+	 ["-row", "call", [\@RowSpec], \&ParseRowOption,
+	  "specifications for a single row. Multiple rows should be specified using multiple -row options. Multiple overlay specifications are allowed. If no <row.mnc> is not specified, input volumes are taken from the global <in.mnc> list", "[<row.mnc>] [color:{gray|hot|spect|label|<file>}[:<min>[:<max>]]] [overlay:{<surf.obj>[:<color>[:<line_thick>]]|<label.mnc>[:<opacity>]}]"],
+	 ["-cols", "call", [\@ColSpec], \&ParseColOption,
+	  "comma-separated list of column view specifications. These should be a character or string indicating the plane to view (transverse, sagittal, coronal) followed by a slice position in Talairach coordinates [default: " . join(',', @ColSpec) ."]", "t<slice>|s<slice>|c<slice>[,...]"],
+	 ["-height", "integer", 1, \$Height,
+	  "height of the output image [default: $Height]", "<height>"],
+	 ["-width", "integer", 1, \$Width,
+	  "width of the output image [default: $Width]", "<width>"],
+	["-transpose|-notranspose", "boolean", 1, \$Transpose,
+	 "transpose the image matrix. Note that -width and -height always apply to the final output image, i.e., after the transpose operation if specified [default is -notranspose]"]
+	 );
+    
+    \@args;
+}
+
+# ------------------------------ MNI Header ----------------------------------
+#@NAME       : Initialize
+#@INPUT      : 
+#@OUTPUT     : 
+#@RETURNS    : 
+#@DESCRIPTION: 
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      : 
+#@CREATED    : 98/04/16, Alex Zijdenbos
+#@MODIFIED   :
+#-----------------------------------------------------------------------------
+sub Initialize
+{
+   $, = ' ';     # set output field separator
+
+   # First, announce ourselves to stdout (for ease in later dissection
+   # of log files) -- unless STDOUT is a tty.
+
+   self_announce if $Verbose && ! -t "STDOUT";
+
+   # Set defaults for the global variables.
+   $Verbose      = 1;
+   $Execute      = 1;
+   $Clobber      = 0;
+   $Debug        = 0;
+   $KeepTmp      = 0;
+
+   CreateInfoText;
+
+   my($argTbl) = SetupArgTables;
+   my(@leftOverArgs);
+
+   GetOptions ($argTbl, \@ARGV, \@leftOverArgs) || die "\n";
+   if (@leftOverArgs < 1)  {
+       warn $Usage;
+       die "Incorrect number of arguments\n";
+   }
+
+   $OutFile = shift @leftOverArgs;
+   @Volumes = @leftOverArgs;
+
+   RegisterPrograms([qw(convert gunzip set_object_colour volume_stats)]) || die;
+
+   MNI::Spawn::SetOptions (strict => 2);
+
+   check_output_dirs($TmpDir) if $Execute;
+
+   if (!$Clobber && test_file('-e', $OutFile)) {
+       die "Ouput file $OutFile exists; use -clobber to overwrite\n";
+   }
+
+   my($dir, $base, $ext) = split_path($OutFile, 'last');
+   if ($ext !~ /\.rgb$/) {
+       $ConvertedOutFile = $OutFile;
+       $OutFile = "${TmpDir}${base}.rgb";
+   }
+
+   # Verify dimension specifications
+   die "Please specify -width and/or -height\n" if (($Width <= 0) && ($Height <= 0));
+
+   # Get model directory
+   $ModelDir = MNI::DataDir::dir('ILT');
+
+   #-----------------------------------------------------------------
+   #   Verify row specifications
+   #-----------------------------------------------------------------
+
+   # First, insert any global volumes into volume-less rowspecs
+   my($row);
+   foreach $row (@RowSpec) {
+       if (!$$row{volume}) {
+	   if (@Volumes) {
+	       $$row{volume} = shift @Volumes;
+	   }
+	   else {
+	       die "More row specifications than input volumes\n";
+	   }
+       }
+   }
+
+   # Next, create/add row specifications for any remaining global volumes
+   my($volume);
+   foreach $volume (@Volumes) {
+       print "--- parsing global row options ---\n" if ($Debug);
+       ParseRowOption('-row', [ $volume, @GlobalRowSpec ]);
+   }   
+
+   # Verify all row specifications
+   $n_rows = @RowSpec;
+   my($rowCtr) = 0;
+   foreach $row (@RowSpec) {
+       my($volume) = $$row{volume};
+       die "Error parsing row specifications\n" if (!$volume);
+       check_files($volume) || die;
+       
+       print "\n----------------------\nRow:     $rowCtr\n" if ($Verbose);
+       print "Volume:  $volume\n" if ($Verbose);
+
+       # Explicitly decompress volume to avoid repeated decompressions
+       $volume = Uncompress($TmpDir, $volume);
+       check_files($volume) || die;
+       $$row{volume} = $volume;
+
+       my($color) = $$row{color};
+       if (defined($color)) {
+	   ConvertColorSpec($color, $volume);
+	   print "Color:   " . HashToStr($color) . "\n" if ($Verbose);
+       }
+
+       my($overlays) = $$row{overlay};
+       if (defined($overlays)) {
+	   my($ovl);
+	   foreach $ovl (@$overlays) {
+	       $$ovl{'file'} = Uncompress($TmpDir, $$ovl{'file'});
+	       check_files($$ovl{'file'}) || die;
+	       ($$ovl{'type'}) = $$ovl{'file'} =~ /\.(obj|mnc)/;
+	       if (!defined($$ovl{'type'})) {
+		   die "Unknown overlay type for file " . $$ovl{'file'} . 
+		       ". Must be either .obj or .mnc\n";
+	       }
+	       print "Overlay: " . HashToStr($ovl) . "\n" if ($Verbose);
+	   }
+       }
+
+       print "----------------------\n" if ($Verbose);
+
+       $rowCtr++;
+   }
+
+   #-----------------------------------------------------------------
+   #   Verify column specifications
+   #-----------------------------------------------------------------
+
+   $n_cols = @ColSpec;
+   @ColSpec = map { [ ConvertView($_) ] } @ColSpec;
+}
+
+# ------------------------------ MNI Header ----------------------------------
+#@NAME       : SetupArgTables
+#@INPUT      : 
+#@OUTPUT     : 
+#@RETURNS    : 
+#@DESCRIPTION: 
+#@METHOD     : 
+#@GLOBALS    : 
+#@CALLS      : 
+#@CREATED    : 98/04/16, Alex Zijdenbos
+#@MODIFIED   : 
+#-----------------------------------------------------------------------------
+sub ConvertView {
+    my($spec) = @_;
+    my(@viewSpec);
+
+    my($view);
+    my($plane, $slice) = $spec =~ /^([^\d\-]+)([\d\-\.]+)$/;
+
+    print "Plane: $plane Slice: $slice\n" if ($Verbose);
+
+    if (!defined($plane) || !defined($slice)) {
+	die "Couldn't figure out column specification $spec\n";
+    }
+
+    if ($plane =~ /^s/) {
+	$plane = Sagittal_axis;
+	$view  = Right_view;
+    }
+    elsif ($plane =~ /^t/) {
+	$plane = Transverse_axis;
+	$view  = Top_view;
+    }
+    elsif ($plane =~ /^c/) {
+	$plane = Coronal_axis;
+	$view  = Back_view;
+    }
+    else {
+	die "Unknown plane specification $plane\n";
+    }
+
+    ($plane, $slice, $view);
+}
+
+#-----------------------------------------------------------------
+#   Define the view based on some scene object other than that being
+#   rendered.
+#-----------------------------------------------------------------
+
+sub SetClippedView( $$$ ) {
+    my( $view )        = arg_object( shift, "ILT::View" );
+    my( $object_defining_view ) = arg_object( shift, "ILT::SceneObject" );
+    my( $extra_space_around_bounding_object ) = arg_real( shift, 0, 1e30 );
+    end_args( @_ );
+    
+    my( $view_copy, @bbox );
+    
+#--- make a temporary copy of the view
+    
+    $view_copy = $view->copy();
+    
+#--- define the default view based on the object
+    
+    $view_copy->compute_view_for_object( $object_defining_view );
+    
+#--- explicitly set bounding box of the view, so that it doesn't get
+#--- automatically computed
+    
+    @bbox = $view_copy->bounding_box();
+    
+    $bbox[0] -= $extra_space_around_bounding_object;
+    $bbox[1] += $extra_space_around_bounding_object;
+    $bbox[2] -= $extra_space_around_bounding_object;
+    $bbox[3] += $extra_space_around_bounding_object;
+    $bbox[4] -= $extra_space_around_bounding_object;
+    $bbox[5] += $extra_space_around_bounding_object;
+    
+    $view->bounding_box( @bbox );
+}
+
+sub ParseRowOption {
+    my($opt, $args, $dest) = @_;
+
+    print "ParseRowOption args: \"" . join(' ', @$args) . "\"\n" if ($Debug);
+
+    my($volume) = shift @$args;
+
+    # Verify that an argument was specified
+    if (!defined($volume)) {
+	&Getopt::Tabular::SetError("bad_value", "Option $opt must be followed by something");
+	return 0;
+    }
+
+    # Check whether or not the first argument is a valid minc volume
+    if (!IsMincVolume($volume)) {
+	unshift @$args, $volume; 
+	$volume = 0;
+	@GlobalRowSpec = @$args;
+    }
+
+    my($color)    = undef;
+    my($overlays) = undef;
+
+    while (@$args && ($$args[0] !~ /^-/) && !IsMincVolume($$args[0])) {
+	my(@spec) = split(':', shift @$args);
+
+	my($type) = shift @spec;
+
+	print "Type: $type\n" if ($Debug);
+
+	if ($type eq 'color') {
+	    if (defined($color)) {
+		warn "Warning: ignoring color re-specification \'@spec\'\n";
+	    }
+	    else {
+		$color         = { 'type' => shift @spec };
+		$$color{'min'} = shift @spec if (@spec);
+		$$color{'max'} = shift @spec if (@spec);
+	    }
+	}
+
+	elsif ($type eq 'overlay') {
+	    my($overlay) = { 'file' => shift @spec };
+	    $$overlay{'value'} = shift @spec if (@spec);
+	    $$overlay{'thick'} = shift @spec if (@spec);
+
+	    push(@$overlays, $overlay);
+	}
+
+	else {
+	    &Getopt::Tabular::SetError("bad_value", "Unknown specification \'" . join(':', @spec) . "\'; this must be one of {overlay:|color:}");
+	    return 0;
+	}
+    }
+
+    if (!defined($color)) {
+	$color = { 'type' => 'hot' };
+    }
+	    
+    my(%rowSpec) = (volume => $volume,
+		    color  => $color);
+    $rowSpec{'overlay'} = $overlays if defined($overlays);
+
+    push(@RowSpec, \%rowSpec);
+    
+    return 1;
+}
+
+sub ParseColOption {
+    my($opt, $args, $dest) = @_;
+
+    @$dest = split(',', shift @$args);
+}
+
+sub ConvertColorSpec {
+    my($colorSpec, $volume) = @_;
+
+    if ($$colorSpec{'type'} =~ /gray/) {
+	$$colorSpec{'map'} = Gray_scale;
+    }
+    elsif ($$colorSpec{'type'} =~ /hot/) {
+	$$colorSpec{'map'} = Hot_metal_scale;
+    }
+    elsif ($$colorSpec{'type'} =~ /spect/) {
+	$$colorSpec{'map'} = Spectral_scale;
+    }
+    elsif ($$colorSpec{'type'} =~ /label/) {
+	$$colorSpec{'map'} = Usercc_scale;
+	$$colorSpec{'file'} = "${ModelDir}labels.map";
+    }
+    elsif (check_files($$colorSpec{type})) {
+	$$colorSpec{'file'} = $$colorSpec{'type'};
+	$$colorSpec{'type'} = 'file';
+	$$colorSpec{'map'}  = Usercc_scale;
+    }
+
+    if (!defined($$colorSpec{'min'}) || !defined($$colorSpec{'max'})) {
+	my($extrema) = $VolumeRanges{$volume};
+	if (!defined($extrema)) {
+	    @$extrema = VolumeRange($volume);
+	    $VolumeRanges{$volume} = $extrema;
+	}
+
+	$$colorSpec{'min'} = $$extrema[0] if (!defined($$colorSpec{'min'}));
+	$$colorSpec{'max'} = $$extrema[1] if (!defined($$colorSpec{'max'}));
+    }
+}
+
+sub VolumeRange {
+    my($volume) = @_;
+    my($output);
+
+    Spawn(['volume_stats', '-quiet', '-none', '-pctT', 0.1, $volume], 
+	  stdout => \$output);
+
+    split(/\s+/, $output);
+}
+
+sub ColorObject {
+    my($obj, $color) = @_;
+
+    if (defined($color)) {
+	my($temp) = replace_dir($TmpDir, $obj);
+	$temp =~ s/\.(gz|z|Z)$//;
+	$temp .= "_" . $color;
+	$temp .= "_" while (-e $temp);
+	Spawn(['set_object_colour', $obj, $temp, $color]);
+	$obj = $temp;
+    }
+
+    $obj;
+}
+
+sub HashToStr {
+    my($href) = @_;
+    my($key);
+    my($string);
+    foreach $key (keys %$href) {
+	if (!defined($string)) {
+	    $string = "$key: $$href{$key}";
+	}
+	else {
+ 	    $string .= " $key: $$href{$key}";
+	}
+    }
+
+    $string;
+}
+
+sub IsMincVolume {
+    my($volume) = @_;
+    
+    return (($volume =~ /\.mnc/) && test_file('-e', $volume));
+}
+	
+# ------------------------------ MNI Header ----------------------------------
+#@NAME       : &Uncompress
+#@INPUT      : $tmp_dir - directory to uncompress files to
+#              @originals - list of files to consider for uncompression
+#@OUTPUT     :
+#@RETURNS    : array context: @originals, changed so that any the names
+#                of any files that were compressed are now decompressed
+#                and in $tmp_dir
+#              scalar context: first element of @originals, possibly changed
+#                to decompressed version
+#@DESCRIPTION: Uncompresses (if applicable) compressed files to $tmp_dir.
+#@METHOD     :
+#@GLOBALS    :
+#@CALLS      :
+#@CREATED    : 1995/07/31, Greg Ward
+#@MODIFIED   :
+#-----------------------------------------------------------------------------
+sub Uncompress
+{
+   my ($tmp_dir, @originals) = @_;
+   my ($uncompressed, @uncompressed, $orig);
+
+   foreach $orig (@originals)
+   {
+      if ($orig =~ /\.(Z|gz|z)$/)
+      {
+         ($uncompressed = &replace_dir ($tmp_dir, $orig)) =~ s/\.(Z|gz|z)$//;
+         unless (-e $uncompressed)
+         {
+	     Spawn("gunzip -c $orig > $uncompressed");
+         }
+         push (@uncompressed, $uncompressed);
+     }
+      else
+      {
+	  push (@uncompressed, $orig);
+      }
+   }
+   return @uncompressed if wantarray;
+   return $uncompressed[0];
+}
