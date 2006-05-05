@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl5 -w
+#! /usr/bin/env perl
 
 #----------------------------- MNI Header -----------------------------------
 #@NAME       : print_all_executables.pl
@@ -15,9 +15,10 @@
 #----------------------------------------------------------------------------
 
     use  strict;
+    use  warnings "all";
     use  ILT::Executables;
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/print_all_executables.pl,v 1.3 1998-05-22 14:44:28 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/print_all_executables.pl,v 1.4 2006-05-05 00:48:25 claude Exp $';
 
     my( @execs, $exec, $actual_path );
 

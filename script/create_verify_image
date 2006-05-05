@@ -13,9 +13,9 @@
 #             express or implied warranty.
 #---------------------------------------------------------------------------- 
 #$RCSfile: create_verify_image,v $
-#$Revision: 1.1 $
-#$Author: bert $
-#$Date: 2005-08-16 19:05:17 $
+#$Revision: 1.2 $
+#$Author: claude $
+#$Date: 2006-05-05 00:48:25 $
 #$State: Exp $
 #---------------------------------------------------------------------------
 
@@ -29,7 +29,6 @@
 # *) Allow for different spelling of gr(a|e)y
 # *) Provide for "intuitive" window/level settings "bright" "dim" etc
 
-use MNI::DataDir;
 use MNI::FileUtilities qw(check_output_dirs check_files test_file);
 use MNI::PathUtilities qw(replace_dir split_path);
 use MNI::Spawn;
@@ -40,6 +39,7 @@ use ILT::LayoutInclude;
 use ILT::LayoutUtils;
 
 use strict;
+use FindBin;
 
 # User-modifiable globals
 my($OutFile);
@@ -372,7 +372,7 @@ sub Initialize
    die "Please specify -width and/or -height\n" if (($Width <= 0) && ($Height <= 0));
 
    # Get model directory
-   $ModelDir = MNI::DataDir::dir('ILT');
+   $ModelDir = "$FindBin::Bin/../share/ILT/";
 
    #-----------------------------------------------------------------
    #   Verify row specifications
