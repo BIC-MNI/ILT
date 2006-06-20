@@ -36,7 +36,7 @@
     use      ILT::Executables;
     use      ILT::LayoutInclude;
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/ImageLayout.pm,v 1.11 1998-09-18 13:30:02 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/ImageLayout.pm,v 1.12 2006-06-20 21:51:11 claude Exp $';
 
 #--- Define the name of this class
 
@@ -444,6 +444,12 @@ sub   compute_image_sizes_and_positions( $$$$$$$$$ )
         $vert_white_space = $self->vertical_white_space();
         $n_rows = $self->n_rows();
         $n_cols = $self->n_cols();
+        if( $header_size <= 0.0 ) {
+          $header_size = $vert_white_space;
+        }
+        if( $footer_size <= 0.0 ) {
+          $footer_size = $vert_white_space;
+        }
 
         $used_x_size = $full_x_size - $header_size - $footer_size -
                        ($n_rows-1) * $vert_white_space;
@@ -665,6 +671,7 @@ sub generate_image
 
     $header = $self->header();
     $footer = $self->footer();
+
     ($full_x_size, $full_y_size ) = $self->compute_image_sizes_and_positions(
                              $full_x_size, $full_y_size,
                              2 * $header->height(), 2 * $footer->height(),
@@ -715,7 +722,7 @@ sub generate_image
         $tmp_file = get_tmp_file( "rgb" );
         @tmp_image_files = ( @tmp_image_files, $tmp_file );
         $header->create_text_image_file( $tmp_file, $white_space_colour,
-                                         $full_x_size, 2 * $header->height );
+                                         $full_x_size, 2 * $header->height() );
         $pos = $full_y_size - 2 * $header->height();
         $layout_args = $layout_args . " $tmp_file 0 $pos ";
     }
@@ -729,7 +736,7 @@ sub generate_image
         $tmp_file = get_tmp_file( "rgb" );
         @tmp_image_files = ( @tmp_image_files, $tmp_file );
         $footer->create_text_image_file( $tmp_file, $white_space_colour,
-                                         $full_x_size, 2 * $footer->height );
+                                         $full_x_size, 2 * $footer->height() );
         $layout_args = $layout_args . " $tmp_file 0 0 ";
     }
 

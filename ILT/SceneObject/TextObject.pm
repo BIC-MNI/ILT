@@ -37,7 +37,7 @@
     use      ILT::ProgUtils;
     @ISA = ( "ILT::SceneObject" );
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/TextObject.pm,v 1.4 2001-09-24 21:03:45 neelin Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/TextObject.pm,v 1.5 2006-06-20 21:51:11 claude Exp $';
 
 #--------------------------------------------------------------------------
 # define the name of this class
@@ -286,7 +286,7 @@ sub _get_args( $$$ )
     $x = int( $xv + 0.5 );
     $y = int( $yv + 0.5 );
 
-    $args = "-font $font -pen $colour -draw 'text +${x},-${y} \"$string'";
+    $args = "-font $font -pen $colour -draw 'text +${x},-${y} \"$string\"'";
 
     return( $args );
 }
@@ -336,7 +336,7 @@ sub  _determine_width_and_height( $ )
 
     $font = $self->font();
     $args = "-font $font -pen black -draw 'text " .
-            " +${test_x_offset},-${test_y_offset} \"$string'" .
+            " +${test_x_offset},-${test_y_offset} \"$string\"'" .
             " $tmp_file ";
     run_executable( "mogrify", $args );
 
@@ -556,7 +556,7 @@ sub get_text_image_magick_args( $$$ )
     if( $x < 0 )  { $x = 0; }
     if( $y < 0 )  { $y = 0; }
 
-    $args = "-font $font -pen $colour -draw 'text +${x},-${y} \"$string'";
+    $args = "-font $font -pen $colour -draw 'text +${x},-${y} \"$string\"'";
 
     return( $args );
 }

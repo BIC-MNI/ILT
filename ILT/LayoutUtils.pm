@@ -61,13 +61,13 @@
                         );
     }
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/LayoutUtils.pm,v 1.7 1998-09-18 13:30:02 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/LayoutUtils.pm,v 1.8 2006-06-20 21:51:11 claude Exp $';
 
 #---------------
 
 sub ILT_version()
 {
-    return( "1.0" );
+    return( "1.2" );
 }
 
 #---------------
