@@ -13,9 +13,9 @@
 #             express or implied warranty.
 #---------------------------------------------------------------------------- 
 #$RCSfile: create_verify_image,v $
-#$Revision: 1.4 $
+#$Revision: 1.5 $
 #$Author: claude $
-#$Date: 2006-06-20 22:10:32 $
+#$Date: 2007-03-14 19:56:07 $
 #$State: Exp $
 #---------------------------------------------------------------------------
 
@@ -250,7 +250,7 @@ if (defined($ConvertedOutFile)) {
     # of a silly bug in mogrify which loses the image header
     # (otherwise we could use ILT/SceneObject/TextObject.pm).
 
-    AnnotateImage( $ConvertedOutFile, 10, 0, 1.25 );
+    AnnotateImage( $ConvertedOutFile, 10, 0 );
 
 }
 
@@ -267,16 +267,11 @@ if (defined($ConvertedOutFile)) {
 #@CREATED    : 2006/06/20, Claude Lepage
 #@MODIFIED   : 
 #-----------------------------------------------------------------------------
-sub AnnotateImage ( $$$$ ) {
+sub AnnotateImage ( $$$ ) {
 
     my $output = shift;
     my $text_width_offset = shift;
     my $text_height_offset = shift;
-    my $text_scale = shift;
-
-    if( $text_scale <= 0.0 ) {
-      $text_scale = 1.0;
-    }
 
     # Get global position of images by rows and columns.
 
@@ -294,13 +289,13 @@ sub AnnotateImage ( $$$$ ) {
     for( $row = 0; $row < $n_rows; $row++ ) {
         my $title = $RowSpec[$row]{title};
         my $index = $layout->row_col_to_index( $row, 0 );
-        my $x = ($x_pos[$index] + $text_width_offset)/$text_scale;
-        my $y = ($y_pos[$index] + $text_height_offset)/$text_scale;
-        push @DrawText, "-draw 'scale $text_scale,$text_scale text $x,$y \"$title\"'";
+        my $x = ($x_pos[$index] + $text_width_offset);
+        my $y = ($y_pos[$index] + $text_height_offset);
+        push @DrawText, "-annotate 0x0+${x}+${y} \"$title\"";
     }
 
     if( @DrawText ) {
-      Spawn( "mogrify -stroke green @DrawText $output" );
+      Spawn( "mogrify -stroke green -pointsize 16 @DrawText $output" );
     }
 }
 
