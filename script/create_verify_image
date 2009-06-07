@@ -13,9 +13,9 @@
 #             express or implied warranty.
 #---------------------------------------------------------------------------- 
 #$RCSfile: create_verify_image,v $
-#$Revision: 1.5 $
+#$Revision: 1.6 $
 #$Author: claude $
-#$Date: 2007-03-14 19:56:07 $
+#$Date: 2009-06-07 20:12:57 $
 #$State: Exp $
 #---------------------------------------------------------------------------
 
@@ -285,7 +285,7 @@ sub AnnotateImage ( $$$ ) {
     # Issue command to draw each label, left justified.
 
     my $row;
-    my @DrawText = ();
+    my @DrawText = ( "-font", "Helvetica" );
     for( $row = 0; $row < $n_rows; $row++ ) {
         my $title = $RowSpec[$row]{title};
         my $index = $layout->row_col_to_index( $row, 0 );
