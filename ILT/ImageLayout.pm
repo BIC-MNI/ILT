@@ -36,7 +36,7 @@
     use      ILT::Executables;
     use      ILT::LayoutInclude;
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/ImageLayout.pm,v 1.12 2006-06-20 21:51:11 claude Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/ImageLayout.pm,v 1.13 2011-02-04 16:48:13 alex Exp $';
 
 #--- Define the name of this class
 
@@ -741,15 +741,6 @@ sub generate_image
     }
 
     #-------------------------------------------------------------------------
-    # delete any temporary geometry created by the scene objects
-    #-------------------------------------------------------------------------
-
-    for( $image_index = 0;  $image_index < $self->{N_IMAGES};  ++$image_index )
-    {
-        $self->{IMAGES}[$image_index]->scene_object()->delete_temp_geometry_file();
-    }
-
-    #-------------------------------------------------------------------------
     # determine if the file is an rgb or must be converted from another type
     #-------------------------------------------------------------------------
 
@@ -769,12 +760,6 @@ sub generate_image
     {
         run_executable( "convert", "$tmp_filename $filename " );
     }
-
-    #-------------------------------------------------------------------------
-    # delete the temporary image files
-    #-------------------------------------------------------------------------
-
-    delete_tmp_files( @tmp_image_files );
 }
 
 1;

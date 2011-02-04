@@ -37,7 +37,7 @@
     use      UNIVERSAL qw(isa);
     @ISA =   ( "ILT::SceneObject" );
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/UnionObject.pm,v 1.6 1998-09-18 13:30:01 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/UnionObject.pm,v 1.7 2011-02-04 16:48:14 alex Exp $';
 
 #--------------------------------------------------------------------------
 # define the name of this class
@@ -228,8 +228,6 @@ sub  get_plane_intersection( $$$$ )
 
         run_executable( "cat", "$tmp_file >> $output_file" );
     }
-
-    delete_tmp_file( $tmp_file );
 }
 
 #----------------------------- MNI Header -----------------------------------
@@ -336,36 +334,6 @@ sub  create_temp_geometry_file( $ )
     foreach $sub_object ( @{$self->{SUB_OBJECTS}} )
     {
         $sub_object->create_temp_geometry_file();
-    }
-}
-
-#----------------------------- MNI Header -----------------------------------
-#@NAME       : delete_temp_geometry_file
-#@INPUT      : self
-#@OUTPUT     : 
-#@RETURNS    : 
-#@DESCRIPTION: Deletes the temporary geometry file for this object
-#@METHOD     : 
-#@GLOBALS    : 
-#@CALLS      :  
-#@CREATED    : Apr. 16, 1998    David MacDonald
-#@MODIFIED   : 
-#----------------------------------------------------------------------------
-
-sub  delete_temp_geometry_file
-{
-    my( $self )                = arg_object( shift, $this_class );
-    end_args( @_ );
-
-    my( $sub_object );
-
-    #--------------------------------------------------------------------------
-    # simply ask each object to delete its own temporary geometry file
-    #--------------------------------------------------------------------------
-
-    foreach $sub_object ( @{$self->{SUB_OBJECTS}} )
-    {
-        $sub_object->delete_temp_geometry_file();
     }
 }
 

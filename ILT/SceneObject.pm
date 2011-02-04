@@ -6,7 +6,7 @@
     use      ILT::LayoutUtils;
     use      ILT::ProgUtils;
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject.pm,v 1.5 1998-09-18 13:30:03 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject.pm,v 1.6 2011-02-04 16:48:13 alex Exp $';
 
 my( $this_class ) = "ILT::SceneObject";
 
@@ -23,14 +23,6 @@ sub new( $ )
 }
 
 sub  create_temp_geometry_file( $ )
-{
-    my( $self )   = arg_object( shift, $this_class );
-    end_args( @_ );
-
-#--- nothing to do for base class
-}
-
-sub  delete_temp_geometry_file()
 {
     my( $self )   = arg_object( shift, $this_class );
     end_args( @_ );
@@ -99,14 +91,6 @@ sub get_text_image_magick_args( $$$ )
     end_args( @_ );
 
     return( "" );
-}
-
-sub DESTROY()
-{
-    my( $self )                = arg_object( shift, $this_class );
-    end_args( @_ );
-
-    $self->delete_temp_geometry_file();
 }
 
 1;

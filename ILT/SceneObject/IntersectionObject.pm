@@ -39,7 +39,7 @@
 
     @ISA = ( "ILT::SceneObject" );
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/IntersectionObject.pm,v 1.6 1998-09-18 13:30:01 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/IntersectionObject.pm,v 1.7 2011-02-04 16:48:14 alex Exp $';
 
 #--------------------------------------------------------------------------
 # name of this class
@@ -181,31 +181,6 @@ sub  create_temp_geometry_file( $ )
     #--------------------------------------------------------------------------
 
     $self->{TEMP_GEOMETRY_FILE} = $tmp_file;
-}
-
-#----------------------------- MNI Header -----------------------------------
-#@NAME       : delete_temp_geometry_file
-#@INPUT      : self
-#@OUTPUT     : 
-#@RETURNS    : void
-#@DESCRIPTION: If the temporary geometry file has been created, delete it.
-#@METHOD     : 
-#@GLOBALS    : 
-#@CALLS      :  
-#@CREATED    : Apr. 16, 1998    David MacDonald
-#@MODIFIED   : 
-#----------------------------------------------------------------------------
-
-sub  delete_temp_geometry_file( $ )
-{
-    my( $self )        =  arg_object( shift, $this_class );
-    end_args( @_ );
-
-    if( defined( $self->{TEMP_GEOMETRY_FILE} ) )
-    {
-        delete_tmp_files( $self->{TEMP_GEOMETRY_FILE} );
-        $self->{TEMP_GEOMETRY_FILE} = undef;
-    }
 }
 
 #----------------------------- MNI Header -----------------------------------

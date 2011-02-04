@@ -38,7 +38,7 @@
     use      ILT::SceneObject::OneSubObject;
     @ISA =   ( "ILT::OneSubObject" );
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/TransformObject.pm,v 1.5 1998-05-22 14:44:45 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/TransformObject.pm,v 1.6 2011-02-04 16:48:14 alex Exp $';
 
 #--------------------------------------------------------------------------
 # define the name of this class
@@ -194,8 +194,6 @@ sub  get_plane_intersection( $$$$ )
     #--------------------------------------------------------------------------
 
     run_executable( "transform_objects", "$tmp_file $transform $output_file" );
-
-    delete_tmp_file( $tmp_file );
 }
 
 #----------------------------- MNI Header -----------------------------------
@@ -250,15 +248,6 @@ sub compute_bounding_view( $$$$ )
            $self->SUPER::compute_bounding_view( $view_direction_ref,
                                                        $up_direction_ref,
                                                        $tmp_transform );
-
-    #--------------------------------------------------------------------------
-    # if we had created a temporary transform file, delete it
-    #--------------------------------------------------------------------------
-
-    if( defined($transform) && $transform ne "" )
-    {
-        delete_tmp_files( $tmp_transform );
-    }
 
     return( $x_min, $x_max, $y_min, $y_max, $z_min, $z_max );
 }

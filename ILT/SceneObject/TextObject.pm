@@ -37,7 +37,7 @@
     use      ILT::ProgUtils;
     @ISA = ( "ILT::SceneObject" );
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/TextObject.pm,v 1.5 2006-06-20 21:51:11 claude Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/TextObject.pm,v 1.6 2011-02-04 16:48:14 alex Exp $';
 
 #--------------------------------------------------------------------------
 # define the name of this class
@@ -353,8 +353,6 @@ sub  _determine_width_and_height( $ )
     $self->{HEIGHT} = $y_max - $y_min + 1;
     $self->{X_OFFSET} = $test_x_offset - $x_min;
     $self->{Y_OFFSET} = $test_y_offset - $y_min;
-
-    delete_tmp_files( $tmp_file );
 }
 
 #----------------------------- MNI Header -----------------------------------

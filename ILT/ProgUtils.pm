@@ -3,6 +3,7 @@
     package  ILT::ProgUtils;
     use  strict;
     use  Carp;
+	use File::Temp qw/ tempdir tempfile /;
     use UNIVERSAL qw(isa);
 
 
@@ -27,8 +28,7 @@
                           &opt_arg_int &opt_arg_real &opt_arg_enum
                           &opt_arg_object &opt_arg_string
                           &opt_arg_array_of_reals
-                          &get_tmp_file &delete_tmp_files &system_call
-                          &clean_up &clean_up_and_die
+                          &get_tmp_file &system_call
                           &False
                           &True
                           &N_boolean_enums
@@ -40,7 +40,7 @@
                         );
     }
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/ProgUtils.pm,v 1.2 1998-05-22 14:44:35 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/ProgUtils.pm,v 1.3 2011-02-04 16:48:13 alex Exp $';
 
 #---------------------------  error function
 
@@ -63,7 +63,7 @@ sub  fatal_error( @ )
     my( @args ) = @_;
 
     error( @args );
-    clean_up_and_die();
+    confess( @_ , "\n" );
 }
 
 #---------------------------  Perl argument checking
@@ -424,95 +424,19 @@ sub get_filename_no_dirs( $ )
 
 #--------------- tmp files -------------------
 
-my $initialized = 0;
-
-my %all_tmp_files;
-
-sub  register_tmp_files( @ )
-{
-    my( @args ) = @_;
-    my $arg;
-
-    if( ! $initialized )
-    {
-        $initialized = 1;
-        $SIG{INT} = 'catch_interrupt_and_delete_tmp';
-        $SIG{QUIT} = 'catch_interrupt_and_delete_tmp';
-        $SIG{ABRT} = 'catch_interrupt_and_delete_tmp';
-        $SIG{KILL} = 'catch_interrupt_and_delete_tmp';
-        $SIG{SEGV} = 'catch_interrupt_and_delete_tmp';
-        $SIG{STOP} = 'catch_interrupt_and_delete_tmp';
-        $SIG{TERM} = 'catch_interrupt_and_delete_tmp';
-    }
-
-    foreach $arg ( @args )
-    {
-        $all_tmp_files{$arg} = 1;
-    }
-}
-
-sub  unregister_tmp_files( @ )
-{
-    my( @args ) = @_;
-    my $arg;
-
-    foreach $arg ( @args )
-    {
-        delete( $all_tmp_files{$arg} );
-    }
-}
-
-sub  delete_tmp_files( @ )
-{
-    my @args = @_;
-    my $arg;
-
-    foreach $arg ( @args )
-    {
-        if( -e "$arg" ) { unlink( $arg ) }
-    }
-
-    unregister_tmp_files( @args );
-}
-
-sub  clean_up()
-{
-    delete_tmp_files( keys(%all_tmp_files) );
-}
-
-sub  clean_up_and_die( @ )
-{
-    clean_up();
-    confess( @_ , "\n" );
-}
-
-sub catch_interrupt_and_delete_tmp( $ )
-{
-    my( $signame ) = arg_string( shift );
-    end_args( @_ );
-
-    clean_up_and_die( "Received SIG$signame\n" );
-}
-
-my $tmp_file_index = 0;
+my $tmp_dir=tempdir( "ILT_${$}_XXXXX", TMPDIR => 1, CLEANUP => 1 );
 
 sub get_tmp_file( $ )
 {
     my( $suffix ) = arg_string( shift );
     end_args( @_ );
 
-    my $tmp_file;
-
     if( defined($suffix) )
         { $suffix = "." . $suffix; }
     else
         { $suffix = ""; }
 
-    $tmp_file = "/tmp/ILT_tmp_${$}_${tmp_file_index}${suffix}";
-
-    register_tmp_files( $tmp_file );
-
-    ++$tmp_file_index;
+    my($fh, $tmp_file) = tempfile( "ILT_XXXXX", DIR=>$tmp_dir, SUFFIX=>$suffix );
 
     return( $tmp_file );
 }
@@ -533,11 +457,11 @@ sub system_call( $ )
         @separate = split( /\s+/, $command );
         $com = $separate[0];
         if( $ret == 2 )
-            { clean_up_and_die( "System command <$com> was interrupted.\n" ); }
+            { confess( "System command <$com> was interrupted.\n" ); }
         elsif( $ret == 65280 )
-            { clean_up_and_die( "System command <$com> was not found.\n" ); }
+            { confess( "System command <$com> was not found.\n" ); }
         else
-            { clean_up_and_die( "System command <$com> failed with return value
+            { confess( "System command <$com> failed with return value
  <$ret>.\n" ); }
     }
     return( $ret / 256 );

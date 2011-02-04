@@ -38,7 +38,7 @@
     use      ILT::ProgUtils;
     @ISA =   ( "ILT::SceneObject" );
 
-    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/OneSubObject.pm,v 1.4 1998-09-18 13:30:01 david Exp $';
+    my( $rcsid ) = '$Header: /private-cvsroot/libraries/ILT/ILT/SceneObject/OneSubObject.pm,v 1.5 2011-02-04 16:48:14 alex Exp $';
 
 #--------------------------------------------------------------------------
 # the name of this class
@@ -225,31 +225,6 @@ sub  create_temp_geometry_file( $ )
     #--------------------------------------------------------------------------
 
     $self->sub_object()->create_temp_geometry_file();
-}
-
-#----------------------------- MNI Header -----------------------------------
-#@NAME       : delete_temp_geometry_file
-#@INPUT      : self
-#@OUTPUT     : 
-#@RETURNS    : 
-#@DESCRIPTION: Deletes the temporary geometry file for this object.
-#@METHOD     : 
-#@GLOBALS    : 
-#@CALLS      :  
-#@CREATED    : Apr. 16, 1998    David MacDonald
-#@MODIFIED   : 
-#----------------------------------------------------------------------------
-
-sub  delete_temp_geometry_file( $ )
-{
-    my( $self )                = arg_object( shift, $this_class );
-    end_args( @_ );
-
-    #--------------------------------------------------------------------------
-    # simply pass on the request to the sub object
-    #--------------------------------------------------------------------------
-
-    $self->sub_object()->delete_temp_geometry_file();
 }
 
 #----------------------------- MNI Header -----------------------------------
