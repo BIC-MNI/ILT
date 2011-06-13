@@ -3,7 +3,7 @@ use ExtUtils::MakeMaker;
 # the contents of the Makefile that is written.
 WriteMakefile(
     'NAME'	=> 'ILT',
-    'VERSION'   => '1.2.2',
+    'VERSION'   => '1.2.3',
     'EXE_FILES' => [qw(script/create_verify_image) ],
     'dist'      => { COMPRESS=>"gzip", SUFFIX=>"gz" }
 );
