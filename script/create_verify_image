@@ -11,13 +11,6 @@
 #             make no representations about the suitability of this
 #             software for any purpose.  It is provided "as is" without
 #             express or implied warranty.
-#---------------------------------------------------------------------------- 
-#$RCSfile: create_verify_image,v $
-#$Revision: 1.7 $
-#$Author: alex $
-#$Date: 2009-11-08 23:14:43 $
-#$State: Exp $
-#---------------------------------------------------------------------------
 
 # TO DO:
 # 
@@ -41,9 +34,11 @@ use ILT::LayoutInclude;
 use ILT::LayoutUtils;
 use ILT::ProgUtils;
 
+use MNI::DataDir;
+
 use strict;
+use Storable qw/dclone/;
 use FindBin;
-use Switch;
 
 $| = 1;
 
@@ -62,13 +57,20 @@ my($Height, $Width) = (0, 0);
 my($BGcolor) = 'black';
 my($BoundingObject) = undef;
 my($BoundingVolume) = undef;
+my($RangeFloor) = undef;
+my($Crop) = 0;
 my(@RowSpec);
 my(@GlobalRowSpec) = ();
+my($AlignCoM) = 0;
 my(@ColSpec) = qw(t-35 t10 t65 s-30 s60 c-90 c-25 c30); 
-my $DefaultColsUsed = 1;
-my $AutoCols = 0;
+my($DefaultColsUsed) = 1;
+my($AutoCols) = 0;
+my($AutoCol_Planes) = 's,c,t';
 my($Transpose) = 0;
 my($FileTitle) = 0;
+my($RepeatTitle) = 1;
+
+my(%Progs); # Placeholder needed by &Run()
 
 # highest label value allowed. Used when generating objects for surface overlay
 my($MAX_LABEL) = 255;
@@ -77,13 +79,16 @@ my($MAX_LABEL) = 255;
 # are stored here for reuse across rows ($expanded_label{file.mnc}{label}) 
 my(%expanded_label);
 
+# if masks are binarized, it is noted here to make sure it only happens once
+my(%binarized);
+
 # Other globals
 my($Usage, $Help, $ModelDir,
    $layout, $n_rows, $n_cols,
    $view, $image_info, $row, $col, @obj_files, @view_dirs,
    @view, @plane_object, 
    $surface_cross_section,
-   $bounding_object, $clipped_view, $extra_space_around_bounding_object,
+   $bounding_object, $extra_space_around_bounding_object,
    $object_defining_view, %color_map );
 
 Initialize();
@@ -110,6 +115,23 @@ $layout->white_space_colour( $BGcolor );
 #   scene object which represents the region of interest.  This seems
 #   like a reasonably valid thing to do.
 #-----------------------------------------------------------------
+
+if (defined($BoundingVolume)  && ! defined($BoundingObject)) {
+    # If we were given a bounding volume but no bounding object,
+    # generate a (hopefully sensible) bounding object
+    my @range = VolumeRange($BoundingVolume);
+    my $t = $range[0];
+    my $bv = $BoundingVolume;
+    if ($range[0] == $range[1]) {
+	# In case we were given an empty bounding volume
+	my $ones = &TmpFile($BoundingVolume, 'ones');
+	&Run(['minccalc', '-expression', 1, $BoundingVolume, $ones]) && die;
+	$bv = $ones;
+	$t = 0.5;
+    }
+    $BoundingObject = &TmpFile($bv, EXT => '.obj');
+    &Run(['marching_cubes', $bv, $BoundingObject, $t]) && die;
+}
 
 if (defined($BoundingObject)) {
     $bounding_object = ILT::GeometricObject->new( $BoundingObject );
@@ -142,257 +164,285 @@ for( $col = 0;  $col < $n_cols;  ++$col ) {
 #-----------------------------------------------------------------
 #   Now describe each image in the grid
 #-----------------------------------------------------------------
-
 for( $row = 0;  $row < $n_rows;  ++$row )
 {
-    print "================ Processing row $row =================\n" if ($Verbose);
+   print "================ Processing row $row =================\n" if ($Verbose);
 
-    #-----------------------------------------------------------------
-    #   Create a volume and surface object(s) for each row
-    #-----------------------------------------------------------------
+   #-----------------------------------------------------------------
+   #   Create a volume and surface object(s) for each row
+   #-----------------------------------------------------------------
 
-    my(%colorSpec) = %{ $RowSpec[$row]{color} };
+   my(%colorSpec) = %{ $RowSpec[$row]{color} };
 
-    my($volume_object) = ILT::VolumeObject->new( $RowSpec[$row]{volume} );
-    if ($colorSpec{'type'} eq 'label') {
-	$volume_object->interpolation( Nearest_neighbour_interpolation );
-    }
+   my($volume_object) = ILT::VolumeObject->new( $RowSpec[$row]{volume} );
+   if ($colorSpec{'type'} eq 'label') {
+      $volume_object->interpolation( Nearest_neighbour_interpolation );
+   }
 
-    my($volume_overlaySpec) = $RowSpec[$row]{volume_overlay};
-    if (defined($volume_overlaySpec)) {
-	my($vol_ovl);
-	foreach $vol_ovl (@$volume_overlaySpec) {
-		if ( $$vol_ovl{'type'} eq 'mnc' ){
-			if ($$vol_ovl{'opacity'} ne '' ) {
-				die "$ProgramName overlay opacity value '".$$vol_ovl{'opacity'}."' must be a number.\n" if not $$vol_ovl{'opacity'} =~ /[0-9]+(\.[0-9]*)?/;
-			}else{
-				$$vol_ovl{'opacity'} = 0.5;
-			}
-			$$vol_ovl{'object'} = ILT::VolumeObject->new($$vol_ovl{'file'});
-			$$vol_ovl{'object'}->interpolation( Nearest_neighbour_interpolation );
-		}
-		else{
-			&Getopt::Tabular::SetError("bad_value", "Bad filetype '".$$vol_ovl{'file'}."' -- must be .mnc");
-		}
-
-	}
-    }
-
-	my($surface_overlaySpec) = $RowSpec[$row]{surface_overlay};
-	if (defined($surface_overlaySpec)) {
-
-		# list of surface overlays specs split from minc volume
-		my(@split_overlay);
-
-		my($surf_ovl);
-		foreach $surf_ovl (@$surface_overlaySpec) {
-
-			if ($$surf_ovl{'type'} eq 'obj') {
-				if ($$surf_ovl{'color'} and $$surf_ovl{'color'} ne 'label') {
-					$$surf_ovl{'file'} = ColorObject($$surf_ovl{'file'}, $$surf_ovl{'color'});
-				}
-
-				$$surf_ovl{'object'} = ILT::GeometricObject->new($$surf_ovl{'file'});
-				# no need to split (we're already a surface object file)
-				push( @split_overlay, $surf_ovl) ;
-			}
-
-			if ($$surf_ovl{'type'} eq 'mnc') {
-
-				%color_map = loadColorMap("${ModelDir}labels.map") if not %color_map;
-
-				# add an overlay for each label in the minc volume
-
-				# get labels
-				my $tmp_hist = get_tmp_file( 'csv' );
-				my @cmd = ("mincstats", "-clobber", "-quiet", "-none", "-floor", "0.5","-max", "-integer_histogram", "-histogram", $tmp_hist, $$surf_ovl{'file'});
-				my @mincstats_output = `@cmd`;
-
-				# die if suspected that this minc file isn't a label volume
-				my $greatest_label = $mincstats_output[1];
-				chomp $greatest_label;
-				die "Too many labels in '$$surf_ovl{'file'}' to overlay surfaces\n" if $greatest_label > $MAX_LABEL;
-				
-				my $fh = new IO::File $tmp_hist;
-				die "Unable to generate discrete histogram for '".$$surf_ovl{'file'}."'\n" if (! defined $fh);
-
-				my ($split_surface, %expanded_ovl);
-
-				LINE:
-				while (<$fh>) {
-					next LINE if /^\#/;
-					#<value> <frequency>
-					next if (not /\D*(\d+)\D+(\d+)/ && $1 && $2);
-
-					# don't lose track of any specs given at command line
-					%expanded_ovl = %$surf_ovl;
-
-					# keep track of surface extractions for reuse across rows
-					$split_surface = $expanded_label{ $$surf_ovl{'file'} }{$1};
-					if ( not $split_surface ){
-						$split_surface = get_tmp_file( 'obj' );
-						&Run( "marching_cubes", $$surf_ovl{'file'}, $split_surface, $1-0.5, $1+0.5 ) && die;
-						$expanded_label{ $$surf_ovl{'file'} }{$1} = $split_surface;
-					}
-
-					$expanded_ovl{'file'} = $split_surface;
-					if ($$surf_ovl{'color'} and $$surf_ovl{'color'} ne 'label') {
-						$expanded_ovl{'file'} = ColorObject($expanded_ovl{'file'}, $expanded_ovl{'color'});
-					}
-					else{
-						$expanded_ovl{'file'} = ColorObject($expanded_ovl{'file'}, $color_map{$1});
-					}
-					$expanded_ovl{'object'} = ILT::GeometricObject->new($expanded_ovl{'file'});
-					push( @split_overlay, {%expanded_ovl} );
-				}
-				$fh->close;
-
-			}
-		}
-		# set new surface overlays to those split out of minc volume
-		@$surface_overlaySpec = @split_overlay ;
-	}
-
-    for( $col = 0;  $col < $n_cols;  ++$col )
-    {
-	#-----------------------------------------------------------------
-	#   Create the scene hierarchy for one image as a union of:
-	#       a colour-coded intersection of a slice and volume, and
-	#       a cross section of a surface (intersection of slice and
-	#                                     surface)
-	#-----------------------------------------------------------------
-
-	my($slice_object) = ILT::IntersectionObject->new($plane_object[$col],
-							 $volume_object);
-
-
-	my($colour_object) = 
-	  ILT::ColourObject->new_volume_colouring($slice_object,
-						  $volume_object, 
-						  $colorSpec{'map'},
-						  $colorSpec{'min'},
-						  $colorSpec{'max'});
-	
-	if (defined($colorSpec{'file'})) {
-	    $colour_object->usercc_filename($colorSpec{'file'});
-	}
-
-	my($scene_object) = $colour_object;
-
-	if (defined($volume_overlaySpec)) {
-	    my(@vol_objovl);
-	    my($vol_ovl);
-		my($ovl_color);
-		foreach $vol_ovl (@$volume_overlaySpec) {
-			$ovl_color = defined $$vol_ovl{'color'} ? $$vol_ovl{'color'} : "${ModelDir}labels.map";
-
-			# if rendering as normal volume
-			if ( $ovl_color =~ /gr[ae]y/ ||
-				 $ovl_color =~ /hot/ ||
-				 $ovl_color =~ /spect/ ){
-
-				 # convert to scale
-				 switch ( $ovl_color ){
-					case /gr[ae]y/ { $ovl_color = Gray_scale; }
-					case /hot/     { $ovl_color = Hot_metal_scale; }
-					case /spect/   { $ovl_color = Spectral_scale; }
-					else           { die "processing color spec for volume overlay"; }
-				 }
-
-				#TODO get rid of those undefs
-				my @extrema = VolumeRange($$vol_ovl{'file'}, undef, undef);
-
-				$scene_object = 
-				ILT::ColourObject->new_volume_colouring($scene_object,
-					$$vol_ovl{'object'},
-					$ovl_color,
-					$extrema[0], $extrema[1] );
-
-			}
-			# else map colors based on colorspec (default labels if not defined)
-			else{
-				$scene_object = 
-				ILT::ColourObject->new_volume_colouring($scene_object,
-					$$vol_ovl{'object'},
-					Usercc_scale,
-					0, 255 );
-
-				my $color_map = $ovl_color; 
-
-				# if not a file, treat as a color map string
-				if ( ! -f $ovl_color
-					&& $ovl_color =~ 
-					/((^|,)((\d+:)?([a-zA-Z]+|[0-9]+(\.[0-9]+)?\s+[0-9]+(\.[0-9]+)?+\s+[0-9]+(\.[0-9]+)?+)))+$/){
-
-					# convert to color map file
-					$color_map = generate_color_map( $ovl_color ); 
-				}
-				#if user-specified, there are problems
-				elsif( defined $$vol_ovl{'color'} ) {
-					warn "Ignoring your volume overlay color spec '$ovl_color'\n";
-				}
-
-				$scene_object->usercc_filename($color_map);
-
-			}
-			$scene_object->under_colour( "transparent" );
-			$scene_object->opacity( $$vol_ovl{'opacity'} );
-
-			if (@vol_objovl) {
-				$scene_object = ILT::UnionObject->new( $scene_object, @vol_objovl );
-			}
-		}
-	}
-	if (defined($surface_overlaySpec)) {
-	    my(@surf_objovl);
-	    my($surf_ovl, $line_width);
-		foreach $surf_ovl (@$surface_overlaySpec) {
-			my($surf_objovl) = 
-			ILT::IntersectionObject->new($plane_object[$col],$$surf_ovl{'object'});
-
-
-			if ( defined($$surf_ovl{'thick'}) ){
-				# multiply if first char is 'x'
-				$$surf_ovl{'thick'} =~ /^(x?)(.*)/;
-				if ( $1 ){
-					$line_width = LineWidth($RowSpec[$row]{volume});
-					$line_width *= $2;
-				}
-				else{
-					$line_width = $2
-				}
-			}
-			else{
-				$line_width = LineWidth($RowSpec[$row]{volume});
-			}
-			$surf_objovl = ILT::RenderObject->new($surf_objovl);
-			$surf_objovl->line_width($line_width);
-
-			push(@surf_objovl, $surf_objovl);
-		}
-
-	    if (@surf_objovl) {
-		$scene_object = ILT::UnionObject->new( $scene_object, @surf_objovl );
+   my($volume_overlaySpec) = $RowSpec[$row]{volume_overlay};
+   if (defined($volume_overlaySpec)) {
+      my($vol_ovl);
+      foreach $vol_ovl (@$volume_overlaySpec) {
+	 if ( $$vol_ovl{'type'} eq 'mnc' ){
+	    if ($$vol_ovl{'opacity'} ne '' ) {
+	       die "$ProgramName overlay opacity value '".$$vol_ovl{'opacity'}."' must be a number.\n" if not $$vol_ovl{'opacity'} =~ /[0-9]+(\.[0-9]*)?/;
+	    }else{
+	       $$vol_ovl{'opacity'} = 0.5;
 	    }
-	}
-	
-	$image_info = ILT::ImageInfo->new( $scene_object, $view[$col] );
-	$image_info->background_colour( $BGcolor );
+	    $$vol_ovl{'object'} = ILT::VolumeObject->new($$vol_ovl{'file'});
+	    $$vol_ovl{'object'}->interpolation( Nearest_neighbour_interpolation );
+	 }
+	 else{
+	    &Getopt::Tabular::SetError("bad_value", "Bad filetype '".$$vol_ovl{'file'}."' -- must be .mnc");
+	 }
+      }
+   }
 
-	
-	#-----------------------------------------------------------------
-	#   Attach the image info to the layout manager
-	#-----------------------------------------------------------------
-	
-	if ($Transpose) {
-	    $layout->image_info( $layout->row_col_to_index($n_cols - $col - 1, $row),
-				 $image_info );
-	}
-	else {
-	    $layout->image_info( $layout->row_col_to_index($n_rows - $row - 1, $col),
-				 $image_info );
-	}
-    }
+   my($surface_overlaySpec) = $RowSpec[$row]{surface_overlay};
+   if (defined($surface_overlaySpec)) {
+
+      # list of surface overlays specs split from minc volume
+      my(@split_overlay);
+
+      my($surf_ovl);
+      foreach $surf_ovl (@$surface_overlaySpec) {
+
+	 if ($$surf_ovl{'type'} eq 'obj') {
+	    if ($$surf_ovl{'color'} and $$surf_ovl{'color'} ne 'label') {
+	       $$surf_ovl{'file'} = ColorObject($$surf_ovl{'file'}, $$surf_ovl{'color'});
+	    }
+
+	    $$surf_ovl{'object'} = ILT::GeometricObject->new($$surf_ovl{'file'});
+	    # no need to split (we're already a surface object file)
+	    push( @split_overlay, $surf_ovl) ;
+	 }
+
+	 if ($$surf_ovl{'type'} eq 'mnc') {
+
+	    %color_map = loadColorMap("${ModelDir}labels.map") if not %color_map;
+
+	    # add an overlay for each label in the minc volume
+
+	    # get labels
+	    my $tmp_hist = get_tmp_file( 'csv' );
+	    my @cmd = ("mincstats", "-clobber", "-quiet", "-none", "-floor", "0.5","-max", "-integer_histogram", "-histogram", $tmp_hist, $$surf_ovl{'file'});
+	    my @mincstats_output = `@cmd`;
+
+	    # die if suspected that this minc file isn't a label volume
+	    my $greatest_label = $mincstats_output[1];
+	    chomp $greatest_label;
+	    die "Too many labels in '$$surf_ovl{'file'}' to overlay surfaces\n" if $greatest_label > $MAX_LABEL;
+
+	    my $fh = new IO::File $tmp_hist;
+	    die "Unable to generate discrete histogram for '".$$surf_ovl{'file'}."'\n" if (! defined $fh);
+
+	    my ($split_surface, %expanded_ovl);
+
+	    LINE:
+	    while (<$fh>) {
+	       next LINE if /^\#/;
+	       #<value> <frequency>
+	       next if (not /\D*(\d+)\D+(\d+)/ && $1 && $2);
+
+	       # don't lose track of any specs given at command line
+	       %expanded_ovl = %$surf_ovl;
+
+	       # keep track of surface extractions for reuse across rows
+	       $split_surface = $expanded_label{ $$surf_ovl{'file'} }{$1};
+	       if ( not $split_surface ){
+		  $split_surface = get_tmp_file( 'obj' );
+		  &Run( ["marching_cubes", $$surf_ovl{'file'}, $split_surface, $1-0.5, $1+0.5] ) && die;
+		  $expanded_label{ $$surf_ovl{'file'} }{$1} = $split_surface;
+	       }
+
+	       $expanded_ovl{'file'} = $split_surface;
+	       if ($$surf_ovl{'color'} and $$surf_ovl{'color'} ne 'label') {
+		  $expanded_ovl{'file'} = ColorObject($expanded_ovl{'file'}, $expanded_ovl{'color'});
+	       }
+	       else{
+		  $expanded_ovl{'file'} = ColorObject($expanded_ovl{'file'}, $color_map{$1});
+	       }
+	       $expanded_ovl{'object'} = ILT::GeometricObject->new($expanded_ovl{'file'});
+	       push( @split_overlay, {%expanded_ovl} );
+	    }
+	    $fh->close;
+
+	 }
+      }
+      # set new surface overlays to those split out of minc volume
+      @$surface_overlaySpec = @split_overlay ;
+   }
+
+   for( $col = 0;  $col < $n_cols;  ++$col )
+   {
+      #-----------------------------------------------------------------
+      #   Create the scene hierarchy for one image as a union of:
+      #       a colour-coded intersection of a slice and volume, and
+      #       a cross section of a surface (intersection of slice and
+      #                                     surface)
+      #-----------------------------------------------------------------
+
+      my($slice_object) = ILT::IntersectionObject->new($plane_object[$col],
+	 $volume_object);
+
+
+      my($colour_object) = 
+      ILT::ColourObject->new_volume_colouring($slice_object,
+	 $volume_object, 
+	 $colorSpec{'map'},
+	 $colorSpec{'min'},
+	 $colorSpec{'max'});
+
+      if (defined($colorSpec{'file'})) {
+	 $colour_object->usercc_filename($colorSpec{'file'});
+      }
+
+      my($scene_object) = $colour_object;
+
+      if (defined($volume_overlaySpec)) {
+	 my(@vol_objovl);
+	 my($vol_ovl);
+	 my($ovl_color);
+	 foreach $vol_ovl (@$volume_overlaySpec) {
+	    $ovl_color = defined $$vol_ovl{'color'} ? $$vol_ovl{'color'} : "${ModelDir}labels.map";
+
+	    # if rendering as normal volume
+	    if (  ! -f $ovl_color && 
+	         ( $ovl_color =~ /gr[ae]y/ ||
+	           $ovl_color =~ /hot/ ||
+	           $ovl_color =~ /spect/ ) ){
+
+	       # convert to scale
+	      if ( $ovl_color =~ /gr[ae]y/  ) { $ovl_color = Gray_scale; }
+		  elsif ( $ovl_color =~ /hot/   ) { $ovl_color = Hot_metal_scale; }
+		  elsif ( $ovl_color =~ /spect/ ) { $ovl_color = Spectral_scale; }
+		  else  { die "error processing color spec for volume overlay"; }
+
+	       #TODO get rid of those undefs
+	       my @extrema = VolumeRange($$vol_ovl{'file'}, { 'fullrange' => 1 } );
+
+	       $scene_object = 
+	       ILT::ColourObject->new_volume_colouring($scene_object,
+		  $$vol_ovl{'object'},
+		  $ovl_color,
+		  $extrema[0], $extrema[1] );
+
+	    }
+	    # else map colors based on colorspec (default labels if not defined)
+	    else{
+	       # Binarize the overlay, if that's what the user wants
+	       if ( $ovl_color =~ s/^[bB]\[(.*?)\]// ){
+		   my $binspec = $1;
+		   $ovl_color = $ovl_color ? "1" . $ovl_color : "1:red";
+
+		   # Binarize the whole volume for the first column, and we can reuse it
+		   if ( $col == 0 ){
+		       if ( ! exists $binarized{ $$vol_ovl{'file'} }{"$binspec$ovl_color"} ){
+			   my ($bin_min, $bin_max) = split( ',', $binspec );
+			   my @mm_opt;
+			   if ( defined $bin_min && $bin_max ){
+			       @mm_opt = ('-segment', '-const2', $bin_min, $bin_max );
+			   }
+			   elsif ( defined $bin_min ){
+			       @mm_opt = ('-gt', '-const', $bin_min);
+			   }
+			   elsif ( defined $bin_max ){
+			       @mm_opt = ('-lt', '-const', $bin_max);
+			   }
+			   else {
+			       die "ERROR: could not parse volume overlay binarization color specification: '$ovl_color'\n";
+			   }
+			   my $bin_file = &TmpFile($$vol_ovl{'file'}, 'thresholded');
+			   &Run( ['mincmath', @mm_opt, $$vol_ovl{'file'}, $bin_file] ) && die;
+
+			   $binarized{ $$vol_ovl{'file'} }{"$binspec$ovl_color"} = $bin_file;
+		       }
+		       $$vol_ovl{'object'} = ILT::VolumeObject->new($binarized{ $$vol_ovl{'file'} }{"$binspec$ovl_color"});
+		       $$vol_ovl{'object'}->interpolation( Nearest_neighbour_interpolation );
+		   }
+	       }
+	       $scene_object = 
+	       ILT::ColourObject->new_volume_colouring($scene_object,
+		  $$vol_ovl{'object'},
+		  Usercc_scale,
+		  0, 255 );
+
+	       my $color_map = $ovl_color; 
+
+	       # if not a file, treat as a color map string
+	       if ( ! -f $ovl_color
+		  && $ovl_color =~ 
+		  /((^|,)((\d+:)?([a-zA-Z]+|[0-9]+(\.[0-9]+)?\s+[0-9]+(\.[0-9]+)?+\s+[0-9]+(\.[0-9]+)?+)))+$/){
+
+		  # convert to color map file
+		  $color_map = generate_color_map( $ovl_color ); 
+	       }
+	       #if user-specified, there are problems
+	       elsif( ! -f $ovl_color && defined $$vol_ovl{'color'} ) {
+		  warn "Ignoring your volume overlay color spec '$ovl_color'\n";
+	       }
+
+	       $scene_object->usercc_filename($color_map);
+
+	    }
+	    $scene_object->under_colour( "transparent" );
+	    $scene_object->opacity( $$vol_ovl{'opacity'} );
+
+	    if (@vol_objovl) {
+	       $scene_object = ILT::UnionObject->new( $scene_object, @vol_objovl );
+	    }
+	 }
+      }
+      if (defined($surface_overlaySpec)) {
+	 my(@surf_objovl);
+	 my($surf_ovl, $line_width);
+	 foreach $surf_ovl (@$surface_overlaySpec) {
+	    my($surf_objovl) = 
+	    ILT::IntersectionObject->new($plane_object[$col],$$surf_ovl{'object'});
+
+
+	    if ( defined($$surf_ovl{'thick'}) ){
+	       # multiply if first char is 'x'
+	       $$surf_ovl{'thick'} =~ /^(x?)(.*)/;
+	       if ( $1 ){
+		  $line_width = LineWidth($RowSpec[$row]{volume});
+		  $line_width *= $2;
+	       }
+	       else{
+		  $line_width = $2
+	       }
+	    }
+	    else{
+	       $line_width = LineWidth($RowSpec[$row]{volume});
+	    }
+	    $surf_objovl = ILT::RenderObject->new($surf_objovl);
+	    $surf_objovl->line_width($line_width);
+
+	    push(@surf_objovl, $surf_objovl);
+	 }
+
+	 if (@surf_objovl) {
+	    $scene_object = ILT::UnionObject->new( $scene_object, @surf_objovl );
+	 }
+      }
+
+      $image_info = ILT::ImageInfo->new( $scene_object, $view[$col] );
+      $image_info->background_colour( $BGcolor );
+
+
+      #-----------------------------------------------------------------
+      #   Attach the image info to the layout manager
+      #-----------------------------------------------------------------
+
+      if ($Transpose) {
+	 $layout->image_info( $layout->row_col_to_index($n_cols - $col - 1, $row),
+	    $image_info );
+      }
+      else {
+	 $layout->image_info( $layout->row_col_to_index($n_rows - $row - 1, $col),
+	    $image_info );
+      }
+   }
 }
 
 #-----------------------------------------------------------------
@@ -432,6 +482,9 @@ sub AnnotateImage ( $$$ ) {
     my $text_width_offset = shift;
     my $text_height_offset = shift;
 
+    my $PointSize = 16;
+    my $Font = 'Helvetica';
+
     # Get global position of images by rows and columns.
 
     my( @x_pos, @y_pos, @x_size, @y_size );
@@ -443,21 +496,56 @@ sub AnnotateImage ( $$$ ) {
 
     # Issue command to draw each label, left justified.
     my $row;
-    my @DrawText = ( "-font", "Helvetica" );
+    my @DrawText = ( "-font", $Font );
     my $DrawSomething = 0;
     for( $row = 0; $row < $n_rows; $row++ ) {
         my $title = $RowSpec[$row]{title};
 	if (defined $title && $title) {
-	    my $index = $layout->row_col_to_index( $row, 0 );
+	    my $index = ($Transpose) ? $layout->row_col_to_index( 0, $row ) : $layout->row_col_to_index( $row, 0 );
 	    my $x = ($x_pos[$index] + $text_width_offset);
 	    my $y = ($y_pos[$index] + $text_height_offset);
-	    push(@DrawText, '-annotate', "0x0+${x}+${y}", $title);
+	    push(@DrawText, '-annotate', "0x0+${x}+${y}", "'$title'");
+
+	    if( $RepeatTitle ){
+		# Save the label in its own image file
+		(my $tmp_tag = $title) =~ s/\s/_/g;
+		my $tmp_label = &TmpFile("label_row_$row", EXT=>'.png');
+		&Run( ['convert', '-pointsize', $PointSize, '-font', $Font, "'label:$title'", $tmp_label] ) && die;
+
+		# Get the width of the row
+		my $identify_row = `identify $output`;
+		my $row_width;
+		my $repeat = 1;
+		if( $identify_row !~ /^\S+\s\S+\s(\d+)x/ ){
+		    warn "WARNING: could not determine width in pixels of the row\n";
+		    $repeat = 0;
+		}
+		else {
+		    $row_width = $1;
+		}
+		
+		# Get the width of the label
+		my $identify_label = `identify $tmp_label`;
+		my $label_width;
+		if( $identify_label !~ /^\S+\s\S+\s(\d+)x/ ){
+		    warn "WARNING: could not determine width in pixels of title $title";
+		    $repeat = 0;
+		}
+		else {
+		    $label_width = $1;
+		}
+		
+		# Repeat the title across the row
+		while( ($repeat) && (($x += $label_width + 50) < $row_width ) ){
+		    push(@DrawText, '-annotate', "0x0+${x}+${y}", "'$title'");
+		}
+	    }
 	    $DrawSomething = 1;
 	}
     }
 
     if ($DrawSomething) {
-	&Run('mogrify', '-stroke', 'green', '-pointsize', 16, @DrawText, $output);
+	&Run(['mogrify', '-stroke', 'green', '-pointsize', $PointSize, @DrawText, $output]) && die;
     }
 }
 
@@ -514,23 +602,31 @@ sub SetupArgTables
 	 ["-execute", "boolean", 1, \$Execute, "Execute commands"],
 	 ["Specific Options", "section"],
 	 ["-background_color", "string", 1, \$BGcolor,
- 	  "the `white space' color [default: $BGcolor]", "<color>"],
+ 	  "the 'white space' color [default: $BGcolor]", "<color>"],
 	 ["-bounding_object", "string", 1, \$BoundingObject,
  	  "the bounding object to use for clipping", "<bounds.obj>"],
 	 ["-bounding_volume", "string", 1, \$BoundingVolume,
- 	  "the volume to use for trhe extent of the image viewport", "<volume.mnc>"],
+ 	  "the volume to use for the extent of the image viewport", "<volume.mnc>"],
+	 ["-range_floor", "float", 1, \$RangeFloor,
+	  "floor for auto-range calculation"],
+	 ["-crop", "boolean", 1, \$Crop, "crop each input image to its foreground using some thresholding and morphology magic"],
 	 ["-row", "call", [\@RowSpec], \&ParseRowOption,
-	  "specifications for a single row. Multiple rows should be specified using multiple -row options. Multiple overlay specifications are allowed. If no <row.mnc> is specified, input volumes are taken from the global <in.mnc> list.\n                                        --------------------------------------------------------colorspec -- specify the color space in which to render the volume for this row. Automatically calculates min/max pixel intensities over each slice. A mask can be specified (voxels within 0.5 of <binvalue> (default: 1) are included from the mask volume) for min/max pixel intensity calculation which defines the region over which to calculate intensities. Min and/or max intensities can be set explicately.   color:{gray|hot|spect|label|<file>}[:<min>[:<max>]]\n  color:{gray|hot|spect|label|<file>}[:<mask.mnc>[:<binvalue>]]\n--------------------------------------------------------overlayspec -- specify an overlay for the current row (can be *.obj or *.mnc). Surface overlays can be generated from label volumes where a surface is extracted for each label in the volume. The surface line thickness can be explicitly set with <thickness> (see ray_trace) or the create_verify_image default adjusted by a scaling factor (by prefixing <thickness> with an 'x'). Color can be specified for volume overlays as either a path to a custom color map, a comma-separated list of <label>:<value> pairs, or one of 'gray', 'hot' or 'spect' to overlay a regular scan. Note that the bare 'overlay:' spec is kept for backwards compatability; full functionality can be achieved with 'volume_overlay:' and 'surface_overlay:'.\n  volume_overlay:{<label.mnc>[:<opacity>[:<colors>]]}\n  surface_overlay:{(<surf.obj>|<mask.mnc>)[:<color>[:<thickness>]]\n                     overlay:{<surf.obj>[:<color>[:<thickness>]]|<volume.mnc>[:<opacity>[:<colors>]]}\n                                      --------------------------------------------------------titlespec -- specify a title to draw on the current row                title:<string>                                    --------------------------------------------------------", "[<row.mnc>] [colorspec] [overlayspec] [titlespec]"],
+	  "specifications for a single row. Multiple rows should be specified using multiple -row options. Multiple overlay specifications are allowed. If no <row.mnc> is specified, input volumes are taken from the global <in.mnc> list.\n                                        --------------------------------------------------------colorspec -- specify the color space in which to render the volume for this row. Automatically calculates min/max pixel intensities over each slice. A mask can be specified (voxels within 0.5 of <binvalue> (default: 1) are included from the mask volume) for min/max pixel intensity calculation which defines the region over which to calculate intensities. Min and/or max intensities can be set explicitly, or the automatically detected min/max scaled by specifying a percent.   color:{gray|hot|spect|label|<file>}[:<min>[:<max>]]\n  color:{gray|hot|spect|label|<file>}[:<mask.mnc>[:<binvalue>]]\n--------------------------------------------------------overlayspec -- specify an overlay for the current row (can be *.obj or *.mnc). Surface overlays can be generated from label volumes where a surface is extracted for each label in the volume. The surface line thickness can be explicitly set with <thickness> (see ray_trace) or the create_verify_image default adjusted by a scaling factor (by prefixing <thickness> with an 'x'). Color can be specified for volume overlays as either a path to a custom color map, a comma-separated list of <label>:<value> pairs, or one of 'gray', 'hot' or 'spect' to overlay a regular scan. Note that the bare 'overlay:' spec is kept for backwards compatibility; full functionality can be achieved with 'volume_overlay:' and 'surface_overlay:'.\n  volume_overlay:{<label.mnc>[:<opacity>[:<colors>]]}\n  surface_overlay:{(<surf.obj>|<mask.mnc>)[:<color>[:<thickness>]]\n                     overlay:{<surf.obj>[:<color>[:<thickness>]]|<volume.mnc>[:<opacity>[:<colors>]]}\n                                      --------------------------------------------------------titlespec -- specify a title to draw on the current row                title:<string>                                    --------------------------------------------------------", "[<row.mnc>] [colorspec] [overlayspec] [titlespec]"],
+	 ["-align_com", "boolean", 1, \$AlignCoM, "align input image origin to its CoM"],
 	 ["-cols", "call", [\@ColSpec], \&ParseColOption,
-	  "comma-separated list of column view specifications. These should be a character or string indicating the plane to view (transverse, sagittal, coronal) followed by a slice position in Talairach coordinates [default: " . join(',', @ColSpec) ."]", "t<slice>|s<slice>|c<slice>[,...]"],
+	  "comma-separated list of column view specifications. Specifications start with a character indicating the plane to view ('t' for transverse, 's' for sagittal, 'c' for coronal) followed by slice (world) coordinates. Slice coordinates are specifies as <start>:<stop>:<step>. Start and stop can be left blank to slice to volume extremes. Blank step defaults to 1 [default: " . join(',', @ColSpec) ."]", "t<slice>|s<slice>|c<slice>[,...]"],
 	 ["-autocols", "integer", 1, \$AutoCols,
 	  "automatically add <nslices> regularly spaced slices in each direction. These slices are added to any columns specified via -cols", "<nslices>"],
+	 ["-autocol_planes", "string", 1, \$AutoCol_Planes,
+	  "comma-separated list of planes used by -autocols (example: 's,c')"],
 	 ["-height", "integer", 1, \$Height,
 	  "height of the output image [default: $Height]", "<height>"],
 	 ["-width", "integer", 1, \$Width,
 	  "width of the output image [default: $Width]", "<width>"],
 	 ["-filetitle", "boolean", 1, \$FileTitle,
 	  "add the filename as a title to each row which does not have an explicit title"],
+	 ["-repeattitle|-norepeattitle", "boolean", 1, \$RepeatTitle,
+	  "repeat titles across their entire row"],
 	 ["-transpose|-notranspose", "boolean", 1, \$Transpose,
 	  "transpose the image matrix. Note that -width and -height always apply to the final output image, i.e., after the transpose operation if specified [default is -notranspose]"]
 	);
@@ -557,6 +653,9 @@ sub Initialize
 
    CreateInfoText();
 
+   $TmpDir = File::Spec->tmpdir();
+   $TmpDir = tempdir("${TmpDir}/${ProgramName}_XXXXX", CLEANUP => 1 );
+
    GetOptions ($argTbl, \@ARGV, \@leftOverArgs) || die "\n";
    if (@leftOverArgs < 1)  {
        warn $Usage;
@@ -565,9 +664,6 @@ sub Initialize
 
    $OutFile = shift @leftOverArgs;
    @Volumes = @leftOverArgs;
-
-   $TmpDir = File::Spec->tmpdir();
-   $TmpDir = tempdir("${TmpDir}/${ProgramName}_XXXXX", CLEANUP => 1 );
 
    $ENV{TMPDIR} = $TmpDir;
 
@@ -587,7 +683,7 @@ sub Initialize
        if (($Width <= 0) && ($Height <= 0));
 
    # Get model directory
-   $ModelDir = "$FindBin::Bin/../share/ILT/";
+   $ModelDir = MNI::DataDir::dir('ILT');
 
    #-----------------------------------------------------------------
    #   Verify row specifications
@@ -612,6 +708,61 @@ sub Initialize
        print "--- parsing global row options ---\n" if ($Debug);
        ParseRowOption('-row', [ $volume, @GlobalRowSpec ]);
    }   
+
+   # Crop
+   if ( $Crop ){
+       for my $i (0..$#RowSpec){
+	   my $vol = $RowSpec[$i]{volume};
+	   my $bv = $vol;
+
+	   my $dims;
+	   &Run(['mincinfo', '-vardims', 'image', $vol], \$dims) && die;
+	   chomp $dims;
+	   my @dims = split(' ', $dims);
+
+	   # Make sure we have a 3D volume for mincmorph
+	   if (@dims > 3) {
+	       my $avgdim = (grep(!/space/, @dims))[0];
+	       my $scalar = &TmpFile($vol, 'scalar');
+	       &Run(['mincaverage', '-avgdim', $avgdim, $vol, $scalar]) && die;
+	       $bv = $scalar;
+	   }
+	   
+	   my $t; 
+	   &Run(['mincstats', '-quiet', '-biModalT', $bv], \$t) && die;
+	   chomp $t;
+	 
+	   my $morph = &TmpFile($bv, 'morph');
+	   &Run(['mincmorph', '-clobber', '-successive', "B[${t}]EEEGB[0.5:1.5]DDDDDDD", $bv, $morph]) && die;
+  
+	   my $cropped = &TmpFile($morph, 'cropped');
+	   &Run(['autocrop', '-clobber', '-bbox', $morph, '-bbox_threshold', 0.5, $vol, $cropped]) && die;
+	   $RowSpec[$i]{volume} = $cropped;
+       }
+   }
+
+   # Align center of mass
+   if ( $AlignCoM && @RowSpec > 1){
+       for my $i (0..$#RowSpec){
+	   my $vol = $RowSpec[$i]{volume};
+
+	   my @com = &CoM($vol); 
+	   my @trans = map{ -1 * $_ } @com;
+
+	   my $xfm = &TmpFile($vol, 'com', EXT => '.xfm');
+	   my $com_xfm = "param2xfm $xfm -translation @trans";
+	   print "$com_xfm\n" if $Verbose;
+	   system( $com_xfm ) && die $!;
+
+	   my $res = &TmpFile($vol, 'res');
+	   my $resample_com = "mincresample -transform $xfm -tfm_input_sampling -nearest $vol $res";
+	   print "$resample_com\n" if $Verbose;
+	   system( $resample_com ) && die $!;
+
+	   $RowSpec[$i]{volume} = $res;
+       }
+   }
+
 
    # Verify all row specifications and collect smallest bounding box
    # across al volumes
@@ -655,8 +806,7 @@ sub Initialize
 
        my($volume_overlays) = $$row{volume_overlay};
        if (defined($volume_overlays)) {
-	   my($vol_ovl);
-	   foreach $vol_ovl (@$volume_overlays) {
+	   foreach my $vol_ovl (@$volume_overlays) {
 	       $$vol_ovl{'file'} = Uncompress($TmpDir, $$vol_ovl{'file'});
 	       die "Overlay $$vol_ovl{'file'} is not a file\n" if (! -f $$vol_ovl{'file'});
 	       ($$vol_ovl{'type'}) = $$vol_ovl{'file'} =~ /\.(mnc)/;
@@ -670,8 +820,7 @@ sub Initialize
 
        my($surface_overlays) = $$row{surface_overlay};
        if (defined($surface_overlays)) {
-	   my($surf_ovl);
-	   foreach $surf_ovl (@$surface_overlays) {
+	   foreach my $surf_ovl (@$surface_overlays) {
 	       $$surf_ovl{'file'} = Uncompress($TmpDir, $$surf_ovl{'file'});
 	       die "Overlay $$surf_ovl{'file'} is not a file\n" if (! -f $$surf_ovl{'file'});
 	       ($$surf_ovl{'type'}) = $$surf_ovl{'file'} =~ /\.(obj|mnc)/;
@@ -693,22 +842,79 @@ sub Initialize
    #-----------------------------------------------------------------
 
    if ($AutoCols) {
-	   @ColSpec = () if ($DefaultColsUsed);
+       @ColSpec = () if ($DefaultColsUsed);
 
-	   my @plane = qw/ s c t /;
-	   foreach my $i (0, 1, 2) {
-		   my $extent = $stop[$i] - $start[$i];
-		   my $int = $extent/($AutoCols + 1);
-		   my $slice = sprintf("%.6f", $start[$i] + $int);
-		   for my $j (1..$AutoCols) {
-			   push(@ColSpec, "$plane[$i]$slice");
-			   $slice = sprintf("%.6f",$slice + $int);	       
-		   }
+       my @plane = qw/ s c t /;
+       my @autocolumns = split(',', $AutoCol_Planes );
+
+       # If this is a slice, we can only need a single frame
+       my $SliceDim = &IsSlice( $RowSpec[0]->{volume} );
+       if( $SliceDim >= 0 ){
+	   @autocolumns = ($plane[$SliceDim]);
+	   $AutoCols = 1;
+       }
+
+
+       foreach my $i (0, 1, 2) {
+	   next unless grep( /$plane[$i]/, @autocolumns );
+	   my $extent = $stop[$i] - $start[$i];
+	   my $int = $extent/($AutoCols + 1);
+	   my $slice = sprintf("%.6f", $start[$i] + $int);
+	   for my $j (1..$AutoCols) {
+	       push(@ColSpec, "$plane[$i]$slice");
+	       $slice = sprintf("%.6f",$slice + $int);	       
 	   }
+       }
    }
+
+   @ColSpec = map{ ExpandColSpec( $_, \@start, \@stop ) } @ColSpec;
+   @ColSpec = map { [ ConvertView($_, \@start, \@stop) ] } @ColSpec;
    
    $n_cols = @ColSpec;
-   @ColSpec = map { [ ConvertView($_, \@start, \@stop) ] } @ColSpec;
+}
+
+# Expand range specifications and convert voxel coordinates to world coordinates
+sub ExpandColSpec {
+    my $col = shift;
+    my $start = shift;
+    my $stop = shift;
+
+    # Single slice
+    if ( $col =~ /^(c|s|t)(-?\d+(\.\d*)?)$/ ) {
+	return $1.$2;
+    }
+    # Range
+    elsif ( $col =~ /^(c|s|t)(-?\d*(\.\d+)?):(-?\d*(\.\d*)?)(:(-?\d+(\.\d*)?))?$/ ) { 
+	my $plane = $1;
+	my %plane = ( 's'=>0, 'c'=>1, 't'=>2 );
+	my $dimstart = $$start[ $plane{$plane} ];
+	my $dimstop = $$stop[ $plane{$plane} ];
+
+	# Get bounds and step
+	my ($from, $to, $step) = ($2,$4,$7);
+	print "from $from to $to by $step\n";
+
+	# Default step 1
+	$step = 1 if ! $step;
+
+	# Slice empties to extreme
+	$from = $step>0 ? $dimstart : $dimstart if $from eq '';
+	$to = $step>0 ? $dimstop : $dimstart if $to eq '';
+
+	# Sanity check
+	die "Error parsing colum spec '$col' - zero step\n" if $step == 0;
+	die "Error parsing colum spec '$col' - bad bounds\n" if ($from < $to && $step<0) || ($from > $to && $step>0 );
+
+	# Expand
+	my @expanded;
+	for( my $i=$from ; ($step > 0 ? $i<$to : $i>$to) ; $i+=$step ){
+	    push( @expanded, sprintf("%s%.6f",$plane,$i) );
+	}
+	return @expanded;
+    }
+    else {
+	die "Error parsing column spec $col\n";
+    }
 }
 
 # ------------------------------ MNI Header ----------------------------------
@@ -807,96 +1013,141 @@ sub SetClippedView( $$$ ) {
 }
 
 sub ParseRowOption {
-    my($opt, $args, $dest) = @_;
+   my($opt, $args, $dest) = @_;
 
-    print "ParseRowOption args: \"" . join(' ', @$args) . "\"\n" if ($Debug);
+   print "ParseRowOption args: \"" . join(' ', @$args) . "\"\n" if ($Debug);
 
-    my($volume) = shift @$args;
+   # Defaults
+   my $explode = 0;
+   my $explode_dim;
 
-    # Verify that an argument was specified
-    if (!defined($volume)) {
-	&Getopt::Tabular::SetError("bad_value", "Option $opt must be followed by something");
-	return 0;
-    }
+   my($volume) = shift @$args;
 
-    # Check whether or not the first argument is a valid minc volume
-    if (!IsMincVolume($volume)) {
-	unshift @$args, $volume; 
-	$volume = 0;
-	@GlobalRowSpec = @$args;
-    }
+   # Verify that an argument was specified
+   if (!defined($volume)) {
+      &Getopt::Tabular::SetError("bad_value", "Option $opt must be followed by something");
+      return 0;
+   }
 
-    my($color)            = undef;
-    my($title)            = undef;
-	my($surface_overlays) = undef;
-	my($volume_overlays)  = undef;
+   # Strip off volume tags (if specifed)
+   if( $volume =~ s/^explode(-([^:]+))?:// ){
+       $explode = 1;
+       $explode_dim = $2;
+   }
 
-	while (@$args && ($$args[0] !~ /^-/) && !IsMincVolume($$args[0])) {
-		my(@spec) = split(':', shift @$args);
+   # Check whether or not the first argument is a valid minc volume
+   if (!IsMincVolume($volume)) {
+      unshift @$args, $volume; 
+      $volume = 0;
+      @GlobalRowSpec = @$args;
+   }
 
-		my($type) = shift @spec;
+   my($color)            = undef;
+   my($title)            = undef;
+   my($surface_overlays) = undef;
+   my($volume_overlays)  = undef;
 
-		print "Type: $type\n" if ($Debug);
+   while (@$args && $$args[0] !~ /^-/ && $$args[0] =~ /:/) {
+      my(@spec) = split(':', shift @$args);
 
-		TYPE_PARSE:{
-			if ($type eq 'color') {
-				if (defined($color)) {
-					warn "Warning: ignoring color re-specification \'@spec\'\n";
-				}
-				else {
-					$color         = { 'type' => shift @spec };
-					$$color{'min'} = shift @spec if (@spec);
-					$$color{'max'} = shift @spec if (@spec);
-				}
-			} elsif ($type eq 'overlay') {
-				# for backwards compatability 
-				$spec[0] =~ /\.(obj|mnc)/;
+      my($type) = shift @spec;
 
-				if ( $1 eq 'obj' ){ $type = 'surface_overlay'; redo TYPE_PARSE;  }
-				elsif ( $1 eq 'mnc' ){ $type = 'volume_overlay'; redo TYPE_PARSE; }
-				else{
-					&Getopt::Tabular::SetError("bad_value", "Bad file type \'" . $spec[0] . "\'; this must be either .obj or .mnc ");
-				}
+      print "Type: $type\n" if ($Debug);
 
-			} elsif ($type eq 'volume_overlay') {
-				my($volume_overlay) = { 'file' => shift @spec };
-				$$volume_overlay{'opacity'} = shift @spec if (@spec);
+      TYPE_PARSE:{
+	 if ($type eq 'color') {
+	    if (defined($color)) {
+	       warn "Warning: ignoring color re-specification \'@spec\'\n";
+	    }
+	    else {
+	       $color = { 'type' => shift @spec };
 
-				# treat the rest of this spec as a color
-				if ( @spec ){
-					my $color_spec = join(':',@spec);
-					$$volume_overlay{'color'} = join(':',@spec);
-				}
+	       my($opt1) = shift @spec;
+	       my($opt2) = shift @spec;
 
-				push(@$volume_overlays, $volume_overlay);
-			} elsif ( $type eq 'surface_overlay' ) {
-				my($surface_overlay) = {'file' => shift @spec };
-				$$surface_overlay{'color'} = shift @spec if (@spec);
-				$$surface_overlay{'thick'} = shift @spec if (@spec);
+	       # If doesn't look like a number, consider it a mask
+	       if ( defined $opt1 && $opt1 !~ /[0-9]+(\.[0-9])?/ ){
+		   $$color{'mask'} = $opt1;
+		   $$color{'binvalue'} = defined $opt2 ? $opt2 : 1;
+	       }
+	       else { # it's a number
+		   $$color{'min'} = $opt1;
+		   $$color{'max'} = $opt2;
+	       }
+	   }
+	 } elsif ($type eq 'overlay') {
+	    # for backwards compatability 
+	    $spec[0] =~ /\.(obj|mnc)/;
 
-				push(@$surface_overlays, $surface_overlay);
-			} elsif ($type eq 'title') {
-				$title = shift @spec;
-			} else {
-				&Getopt::Tabular::SetError("bad_value", "Unknown specification \'" . join(':', @spec) . "\'; this must be one of {overlay:|color:|volume_overlay|:surface_overlay:|title:}");
-				return 0;
-			}
-		}
-	}
+	    if ( $1 eq 'obj' ){ $type = 'surface_overlay'; redo TYPE_PARSE;  }
+	    elsif ( $1 eq 'mnc' ){ $type = 'volume_overlay'; redo TYPE_PARSE; }
+	    else{
+	       &Getopt::Tabular::SetError("bad_value", "Bad file type \'" . $spec[0] . "\'; this must be either .obj or .mnc ");
+	    }
 
-    if (!defined($color)) {
-	$color = { 'type' => 'hot' };
-    }
-	    
-    my(%rowSpec) = (volume => $volume,
-		    color  => $color,
-                    title  => $title);
-	$rowSpec{'volume_overlay'} = $volume_overlays if defined($volume_overlays);
-	$rowSpec{'surface_overlay'} = $surface_overlays if defined($surface_overlays);
+	 } elsif ($type eq 'volume_overlay') {
+	    my($volume_overlay) = { 'file' => shift @spec };
+	    $$volume_overlay{'opacity'} = shift @spec if (@spec);
 
-    push(@RowSpec, \%rowSpec);
-    
-    return 1;
+	    # treat the rest of this spec as a color
+	    if ( @spec ){
+	       my $color_spec = join(':',@spec);
+	       $$volume_overlay{'color'} = join(':',@spec);
+	    }
+
+	    push(@$volume_overlays, $volume_overlay);
+	 } elsif ( $type eq 'surface_overlay' ) {
+	    my($surface_overlay) = {'file' => shift @spec };
+	    $$surface_overlay{'color'} = shift @spec if (@spec);
+	    $$surface_overlay{'thick'} = shift @spec if (@spec);
+
+	    push(@$surface_overlays, $surface_overlay);
+	 } elsif ($type eq 'title') {
+	    $title = shift @spec;
+	 } else {
+	    &Getopt::Tabular::SetError("bad_value", "Unknown specification '$type:'; this must be one of {overlay:|color:|volume_overlay|:surface_overlay:|title:}");
+	    return 0;
+	 }
+      }
+   }
+
+   if (!defined($color)) {
+      $color = { 'type' => 'hot' };
+   }
+
+   my(%rowSpec) = (volume => $volume,
+      color  => $color,
+      title  => $title);
+   $rowSpec{'volume_overlay'} = $volume_overlays if defined($volume_overlays);
+   $rowSpec{'surface_overlay'} = $surface_overlays if defined($surface_overlays);
+
+   if(! $explode){
+       push(@RowSpec, \%rowSpec);
+   }
+   else{
+       my $explode_base = "$TmpDir/explode";
+       my $explode_dir = $explode_base;
+       my $i = 0;
+       while(-d $explode_dir){
+	   $explode_dir = "${explode_base}_" . $i++;
+       }
+       # TODO: can the be removed for an additional field in the rowspec to
+       # tell ILT an index to lookup in the un-exploded volume?
+       my @split_volume = ('split_volume.pl', $volume, '-destdir', $explode_dir, '-remove_dim');
+       push( @split_volume, "-dimname", $explode_dim ) if defined $explode_dim;
+       &Run(\@split_volume) && die;
+
+       $i = 0;
+       foreach my $slice (glob("$explode_dir/*mnc")){
+	   my $rowSpec = dclone(\%rowSpec);
+	   $$rowSpec{title} = sprintf("%s (frame %d)", basename($rowSpec{volume}), $i++);
+	   $$rowSpec{volume} = $slice;
+	   push(@RowSpec, $rowSpec);
+	   print "$slice\n";
+       }
+   }
+
+   return 1;
 }
 
 sub ParseColOption {
@@ -910,6 +1161,24 @@ sub ParseColOption {
 sub ConvertColorSpec {
     my($colorSpec, $volume) = @_;
 
+    my @extrema = VolumeRange($volume, $colorSpec);
+
+    # Scale the colors, if that's what the user wants
+    if ( $$colorSpec{'min'} =~ s/\%$// ){
+       $$colorSpec{'min'} *= $extrema[0] / 100;
+    }
+    else{
+       $$colorSpec{'min'} = $extrema[0];
+    }
+
+    if ( $$colorSpec{'max'} =~ s/\%$// ){
+       $$colorSpec{'max'} *= $extrema[1] / 100;
+    }
+    else{
+       $$colorSpec{'max'} = $extrema[1];
+    }
+
+    # Assign the type
     if ($$colorSpec{'type'} =~ /gr[ae]y/) {
 	$$colorSpec{'map'} = Gray_scale;
     }
@@ -922,81 +1191,107 @@ sub ConvertColorSpec {
     elsif ($$colorSpec{'type'} =~ /label/) {
 	$$colorSpec{'map'} = Usercc_scale;
 	$$colorSpec{'file'} = "${ModelDir}labels.map";
+	$$colorSpec{'min'} = 0;
+	$$colorSpec{'max'} = 255;
     }
     elsif (-f $$colorSpec{type}) {
 	$$colorSpec{'file'} = $$colorSpec{'type'};
 	$$colorSpec{'type'} = 'file';
 	$$colorSpec{'map'}  = Usercc_scale;
+	$$colorSpec{'min'} = 0;
+	$$colorSpec{'max'} = 255;
     }
-
-	# because of the way options are specified on the cmd line, we're stuck with
-	# variables that can hold very different data:
-	#   - min/max intensity, or
-	#   - mask/label
-	#
-	# for the 2nd case, $$colorSpec{'min'}=>mask and $$colorSpec{'max'}->label
-	my @extrema = VolumeRange($volume, $$colorSpec{'min'}, $$colorSpec{'max'});
-	$$colorSpec{'min'} = $extrema[0];
-	$$colorSpec{'max'} = $extrema[1];
 }
 
 sub VolumeRange {
-    my($volume) = shift;
-	my($mask) = shift; # if $_;
-	my($bin_value) = shift; # if $_;
+   my($volume) = shift;
 
-	my($cmd, $min, $max);
+   my $colorspec = shift;
 
-	# if not a number, treat as a mask file
-	if ( defined($mask) and $mask !~ /[0-9]+(\.[0-9])?/ ){
-		if (defined($mask) and IsMincVolume($mask)){
-			my $mask_range;
-			$bin_value = 1 if $bin_value !~ /[0-9]+(\.[0-9])?/;
+   my($cmd, $min, $max);
 
-			$cmd = "mincstats -quiet -mask $mask -mask_binvalue $bin_value -pctT 0.1 $volume";
-			$min = `$cmd 2>&1`;
-			die "\nError executing \"$cmd\": $min" if $?;
+   if( $$colorspec{'mask'} ){
+       my $mask = $$colorspec{'mask'};
+       my $binvalue = $$colorspec{'binvalue'};
+      die "Mask '$mask' for color specification is not a minc volume.\n" if ! IsMincVolume($mask);
 
-			$cmd = "mincstats -quiet -mask $mask -mask_binvalue $bin_value -pctT 99.9 $volume";
-			$max = `$cmd 2>&1`;
-			die "\nError executing \"$cmd\": $max" if $?;
+      $cmd = "mincstats -quiet -mask $mask -mask_binvalue $binvalue -pctT 0.1 $volume";
+      $cmd .= " -floor $RangeFloor" if defined $RangeFloor;
+      $min = `$cmd 2>&1`;
+      die "\nError executing \"$cmd\": $min" if $?;
 
-			chomp ($min, $max);
-		}
-		else{ die "Mask '$mask' for color specification either does not exist or is not a minc volume.\n"; }
-	}
-	# else either min/max is given, or we need to calulate them with mincstats
-	else{
-		if ( defined($mask) ){ $min = $mask; }
-		else{ 
-			my $cmd = "mincstats -quiet -pctT 0.1 $volume";
-			$min = `$cmd 2>&1`;
-			die "Error executing \"$cmd\": $min" if $?;
-			chomp $min;
-		}
+      $cmd = "mincstats -quiet -mask $mask -mask_binvalue $binvalue -pctT 99.9 $volume";
+      $max = `$cmd 2>&1`;
+      die "\nError executing \"$cmd\": $max" if $?;
 
-		if ( defined($bin_value) and $bin_value =~ /[0-9]+(\.[0-9])?/ ){ $max = $bin_value; }
-		else{
-			$cmd = "mincstats -quiet -pctT 99.9 $volume";
-			$max = `$cmd 2>&1`;
-			die "Error executing \"$cmd\": $max" if $?;
-			chomp $max
-		}
-	}
+      chomp ($min, $max);
+  }
+  elsif ( $$colorspec{'fullrange'} ){
+      warn "WARNING: fullrange specified, so ignoring explicate 'min' and/or 'max'\n"
+	  if $$colorspec{'min'} || $$colorspec{'max'};
+      my $cmd = "mincstats -quiet -min -max $volume";
+      $cmd .= " -floor $RangeFloor" if defined $RangeFloor;
+      ($min, $max) = `$cmd 2>&1`;
+      die "\nError executing \"$cmd\"" if $?;
+      chomp( $min, $max );
+      $min += 0.1;
+  }
+  else {
+       $min = defined $$colorspec{'min'} ? $$colorspec{'min'} : '100%';
+       $max = defined $$colorspec{'max'} ? $$colorspec{'max'} : '100%';
 
-	return ($min, $max);
+       if ( $min =~ s/\%$// ){
+	   my $cmd = "mincstats -quiet -pctT 0.1 $volume";
+	   $cmd .= " -floor $RangeFloor" if defined $RangeFloor;
+	   my $ms_min = `$cmd 2>&1`;
+	   die "Error executing \"$cmd\": $ms_min" if $?;
+	   chomp $ms_min;
+	   $min = $ms_min * $min / 100;
+       }
+       if ( $max =~ s/\%$// ){
+	   my $cmd = "mincstats -quiet -pctT 99.9 $volume";
+	   $cmd .= " -floor $RangeFloor" if defined $RangeFloor;
+	   my $ms_max = `$cmd 2>&1`;
+	   die "Error executing \"$cmd\": $ms_max" if $?;
+	   chomp $ms_max;
+	   $max = $ms_max * $max / 100;
+       }
+
+   }
+
+   return ($min, $max);
+}
+
+sub IsSlice {
+    my $vol = shift;
+    
+    my $cmd = "mincinfo -error_string 999 -dimlength xspace -dimlength yspace -dimlength zspace $vol";
+    print $cmd . "\n" if $Verbose;
+    my @dims = `$cmd`;
+    die $! if $?;
+    chomp @dims;
+
+    die "Unable to get dimension information from volume $vol\n" if (@dims < 3);
+
+    if ($dims[0] <= 1) {
+	return 0;
+    }
+    elsif ($dims[1] <= 1) {
+	return 1;
+    }
+    elsif ($dims[2] <= 1) {
+	return 2;
+    }
+    
+    return -1;
 }
 
 sub ColorObject {
     my($obj, $color) = @_;
 
     if (defined($color)) {
-	#my($temp) = $TmpDir . "/" . fileparse($obj);
 	my($temp) = get_tmp_file( "obj" );
-	#$temp =~ s/\.(gz|z|Z)$//;
-	#$temp .= "_" . $color; 
-	#$temp .= "_" while (-e $temp);
-	&Run("set_object_colour $obj $temp '$color'");
+	&Run(['set_object_colour', $obj, $temp, "'$color'"]) && die;
 	$obj = $temp;
     }
 
@@ -1022,7 +1317,7 @@ sub HashToStr {
 sub IsMincVolume {
     my($volume) = @_;
     
-    return (($volume =~ /\.mnc/) && (-f $volume));
+    return ($volume =~ /\.mnc/);
 }
 	
 # ------------------------------ MNI Header ----------------------------------
@@ -1055,7 +1350,7 @@ sub Uncompress
 	    $uncompressed =~ s/\.(Z|gz|z)$//;
 	    unless (-e $uncompressed)
 	    {
-		&Run("gunzip -c $orig > $uncompressed");
+		&Run(['gunzip', '-c', $orig, '>', $uncompressed]) && die;
 	    }
 	    push (@uncompressed, $uncompressed);
 	}
@@ -1121,18 +1416,182 @@ sub VolumeBounds {
 }
 
 sub Run {
-    my(@cmd) = @_;
 
-    print "@cmd\n" if ($Verbose);
-    
+    my $cmd = shift;
+
+    my $stdout;
+
+    # Default options
+    my %runopt = (
+	'CHECK_ARG_AGE' => 0,
+	);
+
+    # Extract directives from function call
+    while (defined (my $arg = shift)) {
+	if (defined $runopt{$arg}) {
+	    $runopt{$arg} = shift;
+	}
+	else {
+	    $stdout = $arg;
+	}
+    }
+
+    # Perform some sanity checks on the command
+    foreach my $arg (@$cmd) {
+	die "Command @$cmd has empty arguments\n" if (! defined $arg);
+    }
+
+    # See if the prog knows -verbose, -debug or -tmpdir
+    my @supported_opts;
+    my $prog = $cmd->[0];
+    if ($Progs{$prog}) {
+	@supported_opts = @{ $Progs{$prog}{opts} };
+    }
+    else {
+	die "Couldn't find $prog on your PATH\n"
+	    if (! &FindProgram($prog));
+	
+	my $help = `$prog -help 2>&1`;
+
+	# add verbose switch
+	push( @supported_opts, $1) if ( $prog ne 'loop.pl' &&
+	    				$help =~ /(-?-verbose)/);
+
+	# add debug switch
+	push( @supported_opts, $1) if ( $prog ne 'minccalc' && 
+	    				$prog ne 'identify' &&
+	    				$prog ne 'convert' &&
+	    				$prog ne 'mogrify' &&
+					$help =~ /(-?-debug)/);
+
+	# If the prog supports -tmpdir, only add a flag here; we will
+	# replace it later (for every invocation of the prog)
+	push(@supported_opts, '-tmpdir') if ($help =~ /-tmpdir/);
+	
+	$Progs{$prog}{opts} = \@supported_opts;
+	$Progs{$prog}{time} = 0;
+    }
+	    
+    # Add options to command
+    my @opts;
+    if ( ! grep(/-quiet/, @$cmd) ){
+	if ( $Verbose && (/(-?-verbose)/ ~~ @supported_opts) ){
+	    push(@opts, $1);
+	    push(@opts, 1) if ($prog =~ /minctracc$/); # Grmbl.
+	}
+	if ($Debug && ($prog !~ /minccalc$/) && (/(-?-debug)/ ~~ @supported_opts) ) {
+	    push(@opts, $1);
+	}
+    }
+
+    splice(@$cmd, 0, 1, $cmd->[0], @opts) if @opts; 
+
+    # Now we have a final command line; remove any "in:" and "out:"
+    # specs and collect in- and output file ages
+    my $now = time;
+    my $inputAge = -1;
+    my $outputAge = -1;
+    foreach my $arg (@$cmd) {
+	if ($arg =~ /^(in|out):(.+)$/) {
+	    my $type = $1;
+	    $arg = $2;
+
+	    if (-e $arg) {
+		my $age = $now - (stat($arg))[9];
+
+		if ($type eq 'in') {
+		    $inputAge = $age if ($inputAge < 0 || $age < $inputAge);
+		}
+		elsif ($type eq 'out') {
+		    $outputAge = $age if ($outputAge < 0 || $age > $outputAge);
+		}
+	    }
+	    elsif ($type eq 'out') {
+		$outputAge = 1e99;
+	    }
+
+	    print "outputAge: $outputAge inputAge: $inputAge\n" if $Debug;
+	}
+    }
+
+    print "@$cmd\n" if ($Verbose);
+
+    if ($runopt{CHECK_ARG_AGE} && ($inputAge >= 0) && ($outputAge >= 0) && ($inputAge > $outputAge)) {
+	print "==> Not re-executing because all outputs are younger than all inputs\n" if ($Verbose);
+	return 0;
+    }
+
     my $exit = 0;
-    
+
     if ($Execute) {
-        $exit = system(@cmd);
-        warn "@cmd failed: $?\n" if $exit;
+	my $pipe;
+	my @out;
+	my $t0 = time;
+	#This is a nice list invocation but we'd like to catch stderr
+	#as well 
+	#my $pid = open($pipe, '-|', @$cmd);
+	my $pid = open($pipe, "@$cmd 2>&1 |");
+#	warn "PID: $pid exit: $exit \$\!: $! \$\?: $?\n" if $Debug;
+	if ($pid) {
+	    @out = <$pipe>;
+	    close $pipe;
+	    $exit = $?;
+	}
+	else {
+	    $exit = 1;
+	}
+	
+	if (@out) {
+	    if (defined $stdout) {
+		if (ref($stdout) eq "ARRAY") {
+		    @$stdout = @out;
+		}
+		elsif (ref($stdout) eq "SCALAR") {
+		    $$stdout = join("\n", @out);
+		}
+		elsif (! -e $stdout || -W $stdout) {
+		    my $fh = new IO::File "> $stdout";
+		    die "Couldn't open file $stdout: $!\n" if (! defined $fh);
+		    
+		    print $fh join("\n", @out);
+
+		    $fh->close;
+		}
+		else {
+		    die "I don't know what to do with $stdout (provided as output option to &Run)\n";
+		}
+	    }
+	    elsif ($Verbose) {
+		print @out;
+	    }
+	}
+	    
+#	warn "PID: $pid exit: $exit \$\!: $! \$\?: $?\n" if $Debug;
+	print "@$cmd failed: $!\n"
+	    if ($Verbose && $exit);
+
+	my $elapsed = time - $t0;
+	my ($D, $H, $M, $S) = (gmtime($elapsed))[7,2,1,0];
+	print "Elapsed in $prog: $elapsed seconds ($D days, $H hours, $M minutes, $S seconds)\n" if $Verbose;
+	$Progs{$prog}{time} += $elapsed;
     }
 
     return $exit;
+}
+sub FindProgram {
+    my $prog = shift;
+
+    if ($prog =~ /^\//) {
+	return (-x $prog) ? 1 : 0;
+    }
+    else {
+	foreach my $path (split(/:/, $ENV{PATH})) {
+	    my $fullpath = "${path}/$prog";
+	    return $fullpath if (-x $fullpath);
+	}
+    }
+
+    return 0;
 }
 
 # reads color map from file specified and returns a hash of <label> => <color>
@@ -1170,7 +1629,7 @@ sub LineWidth {
    my $vol = shift;
 
    # [y-step, x-step, x-step, y-length, x-length, z-length]
-   my $cmd = "mincinfo -attvalue yspace:step -attvalue xspace:step -attvalue zspace:step -attvalue yspace:length -attvalue xspace:length -attvalue zspace:length $vol";
+   my $cmd = "mincinfo -attvalue yspace:step -attvalue xspace:step -attvalue zspace:step -dimlength yspace -dimlength xspace -dimlength zspace $vol";
    my @mincinfo = `$cmd`;
    chomp @mincinfo;
 
@@ -1197,7 +1656,7 @@ sub LineWidth {
    }
 
    # based on experiment: feel free to tinker if you don't like this function
-   return (2.71828 ** ( (-0.79 * $scale) + 0.353 )) * $minstep;
+   return (2.71828 ** ( (-0.79 * $scale) + 0.353 )) * $minstep * 1.1;
 }
 
 # generate a color map (255 labels) for specs on cmd line. The map is written to
@@ -1222,7 +1681,7 @@ sub generate_color_map{
 	}
 
 	my $color;
-	my $map = " 0 0 0 0\n";
+	my $map = " 0 transparent\n";
 	foreach my $label (1 .. 254){
 
 		#look for a user-defined color
@@ -1245,3 +1704,263 @@ sub generate_color_map{
 
 	return $filename;
 }
+
+sub TmpFile {
+    my $template = shift;
+
+    # Default options
+    my %opt = (
+	'EXT' => '',
+	'UNIQUE' => 1,
+	);
+
+    print "Template: $template Remaining args: @_\n" if $Debug;
+
+    my @tag;
+    while (defined (my $arg = shift)) {
+	$arg =~ s/\s//g; # Remove any spaces from args
+	print "Args: @_ arg: $arg\n" if $Debug;
+	if (defined $opt{$arg}) {
+	    $opt{$arg} = shift;
+	    $opt{$arg} =~ s/\s//g;
+	    print "Opt{$arg}: $opt{$arg}\n" if $Debug;
+	}
+	else {
+	    push(@tag, $arg);
+	    print "Tags: @tag\n" if $Debug;
+	}
+    }
+
+    my ($base, $dir, $ext) = fileparse($template, qr/\.[^.]*(\.gz)?/);
+
+    # Strip off the tmp file counter, but only if we generated the
+    # filename as a TmpFile to begin with
+    $base =~ s/\_\d+$// if ($dir =~ /^$TmpDir/);
+
+    print "Base: $base Dir: $dir Ext: $ext TmpDir: $TmpDir\n" if $Debug;
+
+    if ($opt{EXT}) {
+	$ext = $opt{EXT};
+    }
+    else {
+	$ext =~ s/\.gz//;
+    }
+
+    my $tempfilebase = "${TmpDir}/${base}";
+    $tempfilebase .= '_' . join('_', @tag) if @tag;
+
+    my $tempfile = "${tempfilebase}${ext}";
+
+    print "Temp filename: $tempfile\n" if $Debug;
+
+    return $tempfile if (! -e $tempfile || ! $opt{UNIQUE});
+    
+    my $i = 0;
+    while (-e ($tempfile = "${tempfilebase}_${i}${ext}")) { $i++ };
+
+    print "Temp filename (final): $tempfile\n" if $Debug;
+
+    return $tempfile;
+}
+
+sub CoM {
+    my $vol = shift;
+
+    my $cmd = "mincstats -com -world_only -quiet $vol";
+    print "$cmd\n" if $Verbose;
+    my $com = `$cmd`;
+    die $! if $?;
+
+    return split(/\s+/, $com);
+}
+
+# Usage stuff
+__END__
+
+=head1 NAME
+
+	create_verify_image - creates a row-based verification image where each column is a slice from an input image, optionally overlayed with other volumes, surfaces, or masks
+
+
+=head1 SYNOPSIS
+
+	create_verify_image <out.{rgb|jpg|tif|...}> [<in.mnc> ...] [options]
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<-help>
+
+	Print summary of command-line options and exit.
+
+=item B<-clobber>
+
+	Overwrite an existing file.
+
+=item B<-noclobber>
+
+	Don't overwrite an existing file (default).
+
+=item B<-verbose>
+
+	Be verbose.
+
+=item B<-quiet>
+
+	Do not print out progress information.
+
+=item B<-debug>
+
+	Print out debugging information.
+
+=item B<-background_color>
+
+	the `white space' color [default: black]
+
+=item B<-bounding_object>
+
+	the bounding object to use for clipping
+
+=item B<-row>
+
+	specify a row of the verification image (see ROW SPECIFICATIONS)
+
+=item B<-align_com>
+
+	align input image origin to its CoM
+
+=item B<-noalign_com>
+
+	opposite of -align_com [default]
+
+=item B<-cols>
+
+	comma-separated list of column view specifications. Specifications start with a character indicating the plane to view ('t' for transverse, 's' for sagittal, 'c' for coronal) followed by slice (world) coordinates. Slice coordinates are specifies as <start>:<stop>:<step>. Start  and  stop  can  be  left  blank  to slice  to  volume  extremes.  Blank  step  defaults  to  1  [default: t-35,t10,t65,s-30,s60,c-90,c-25,c30]
+
+=item B<-autocols>
+
+	automatically add <nslices> regularly spaced slices in each direction. These slices are added to any columns specified via -cols [default: 0]
+
+=item B<-autocol_planes>
+
+	comma-separated list of planes used by -autocols. (example: 's,c') [default: s,c,t]
+
+=item B<-height>
+
+	height of the output image [default: 0]
+
+=item B<-width>
+
+	width of the output inpage [default: 0]
+
+=item B<-filetitle>
+
+	add the filename as a title to each row which does not have an explicit title
+
+=item B<-nofiletitle>
+
+	opposite of -filetitle [default]
+
+=item B<-repeattitle>
+
+	repeat titles across their entire row
+
+=item B<-norepeattitle>
+
+	opposite of -repeattitle [default]
+
+=item B<-transpose>
+
+	transpose the image matrix. Note that -width and -height always apply to the final output image, i.e., after the transpose operation if specified
+
+=item B<-notranspose>
+
+	opposite of -transpose [default]
+
+=back
+
+=head1 ROW SPECIFICATION
+
+The B<-row> arguments can specify a base volume, its color map, its title, and any overlays. Multiple rows should be specified using multiple -row options.  If no <row.mnc> is specified, input volumes are taken from the global <in.mnc> list.
+
+For example, the following specification would render slices of volume.mnc overlaid by mask.mnc:
+
+      -row volume.mnc overlay:mask.mnc
+
+A row can have any number of overlay specifications
+
+      -row volume.mnc overlay:mask.mnc overlay:surface
+
+Four-dimensional columes can be exploded with a "explode" tag:
+
+      -row explode:volume.mnc
+      -row explode-time:volume.mnc
+
+COLOR
+
+B<color:<color_mapE<gt>:<minE<gt>:<maxE<gt>>
+
+B<color:<color_mapE<gt>:<mask.mncE<gt>:<bin_valueE<gt>>
+
+Everything after <color_map> is optional.
+
+The color specification determines the color space in which to render the volume for this row. Available color_map values are:
+
+    hot
+    gray
+    spect
+    label
+
+If min/max and mask.mnc/bin_value are left out, intensity range is automatically computed over each volume.
+
+Min and max can be explicitly set
+
+       color:gray:0:100
+
+or can be defined as a percent of the automatically computed range
+
+       color:gray:50%:150%
+
+If a mask is specified the intensity range is calculated under just that region (voxels within 0.5 of <bin_value> (default: 1) are included from the mask volume)
+
+       color:gray:mask.mnc
+
+TITLE
+
+B<title:<string>>
+
+The title specification determines the title for this row.
+
+OVERLAY
+
+B<volume_overlay:<volume.mncE<gt>:<opacityE<gt>:<colorsE<gt>>
+
+B<surface_overlay:<surface.objE<gt>:<colorE<gt>:<thicknessE<gt>>
+
+Everything after <volume.mnc> and <surface.obj> is optional.
+
+Overlay specification can be done with "overlay:". In this case, whether the overlay is a volume overlay or a surface overlay is determined by file extension.
+
+Volume overlays render a semi-transparent volume in some color space. Opacity should be a number between 0 and 1. Colors can be either a pre-existing color map (hot, gray, spect), a path to a custom color map, or an in-line color map.
+
+An  in-line  color  map is specified in comma-separated "label:color" pairs. The following specification would overlay volume.mnc with opacity=0.5 and the labels 1, 2, and 3 mapped to red, green, and blue, respectively:
+
+       volume_overlay:volume.mnc:0.5:1:red,2:green,3:blue
+
+Volumes can be binarized with a "B[<min>,<max>]" specification. The following specification would threshold the volume from 0.5 to 5.5 and overlay the result in red:
+
+       volume_overlay:volume.mnc:0.5:B[0.5,5.5]:red
+
+Surface overlays render a surface in some solid color. The thickness of the line is automatically determined, but can be set explicitly (see ray_trace) or scaled (x<scale>). If a volume is given to a surface overlay, a surface is generated using marching_cubes.
+
+       surface_overlay:surface.obj:green:x1.2
+       surface_overlay:volume.mnc:green:x1.2
+
+=head1 EXAMPLES
+
+A two-row verification image, with one line containing just a volume, and the next line overlaid with a volume and a suface:
+
+       create_verify_image out.png -width 1600 -autcols 3 -row volume.mnc color:gray -row volume.mnc overlay:surface.obj:green overlay:volume.mnc:0.3:1:red,68:yellow
+
+=cut
