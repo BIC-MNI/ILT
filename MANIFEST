@@ -43,8 +43,8 @@ ILT/SceneObject/UnionObject.pm
 ILT/SceneObject/VolumeObject.pm
 ILT/View.pm
 script/create_verify_image
+share/ILT/labels.map
 MANIFEST
-Makefile
 Makefile.PL
 README
 print_all_executables.pl

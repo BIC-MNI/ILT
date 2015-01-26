@@ -451,9 +451,9 @@ sub   compute_image_sizes_and_positions( $$$$$$$$$ )
           $footer_size = $vert_white_space;
         }
 
-        $used_x_size = $full_x_size - $header_size - $footer_size -
-                       ($n_rows-1) * $vert_white_space;
-        $used_y_size = $full_y_size - ($n_cols-1) * $hor_white_space;
+        $used_x_size = $full_x_size - ($n_cols-1) * $hor_white_space;
+        $used_y_size = $full_y_size - $header_size - $footer_size -
+			($n_rows-1) * $vert_white_space;
 
         #-----------------------------------------------------------------------
         # compute the maximum world height of an image for each row and the
@@ -586,11 +586,11 @@ sub   compute_image_sizes_and_positions( $$$$$$$$$ )
                 # the space alloted for the row or column.
                 #--------------------------------------------------------------
 
-                $$x_pos[$image_index] = $current_x +
-                              ($width - $$x_sizes[$image_index]) / 2;
+                $$x_pos[$image_index] = int( ($current_x +
+                              ($width - $$x_sizes[$image_index]) / 2) + 0.5 );
 
-                $$y_pos[$image_index] = $current_y +
-                              ($height - $$y_sizes[$image_index]) / 2;
+                $$y_pos[$image_index] = int( ($current_y +
+                              ($height - $$y_sizes[$image_index]) / 2) + 0.5 );
 
                 #--------------------------------------------------------------
                 # advance to the next column
