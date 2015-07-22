@@ -10,6 +10,7 @@ INSTALL(FILES
     ILT/LayoutUtils.pm
     ILT/ProgUtils.pm
     ILT/View.pm
+    ILT/SceneObject.pm
   DESTINATION 
    perl/ILT)
 
