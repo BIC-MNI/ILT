@@ -2,7 +2,7 @@ PROJECT(ILT)
 
 
 # install Getopt::Tabular
-INSTALL(FILES 
+INSTALL(FILES
     ILT/Executables.pm
     ILT/ImageInfo.pm
     ILT/ImageLayout.pm
@@ -11,10 +11,10 @@ INSTALL(FILES
     ILT/ProgUtils.pm
     ILT/View.pm
     ILT/SceneObject.pm
-  DESTINATION 
+  DESTINATION
    perl/ILT)
 
-INSTALL(FILES 
+INSTALL(FILES
    ILT/SceneObject/ColourObject.pm
    ILT/SceneObject/GeometricObject.pm
    ILT/SceneObject/IntersectionObject.pm
@@ -25,12 +25,17 @@ INSTALL(FILES
    ILT/SceneObject/TransformObject.pm
    ILT/SceneObject/UnionObject.pm
    ILT/SceneObject/VolumeObject.pm
- DESTINATION 
+ DESTINATION
   perl/ILT/SceneObject)
 
-INSTALL(PROGRAMS 
+INSTALL(PROGRAMS
       script/create_verify_image
     PERMISSIONS
       OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ  WORLD_EXECUTE WORLD_READ
     DESTINATION
-      bin )    
+      bin )
+
+install(DIRECTORY
+  share/ILT
+  USE_SOURCE_PERMISSIONS
+  DESTINATION  share)
