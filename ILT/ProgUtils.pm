@@ -4,7 +4,7 @@
     use  strict;
     use  Carp;
 	use File::Temp qw/ tempdir tempfile /;
-    use UNIVERSAL qw(isa);
+    use UNIVERSAL;
 
 
     BEGIN {
