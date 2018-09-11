@@ -5,7 +5,7 @@
     use  Carp;
     use  ILT::ProgUtils;
     use  ILT::Executables;
-    use UNIVERSAL qw(isa);
+    use UNIVERSAL;
 
 
     BEGIN {
