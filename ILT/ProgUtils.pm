@@ -93,7 +93,7 @@ sub  arg_object( $$ )
 {
     my( $obj, $expected_class ) = @_;
 
-    if( !isa( $obj, $expected_class ) )
+    if( !UNIVERSAL::isa( $obj, $expected_class ) )
     {
         fatal_error(
            "Expected an object argument of class: $expected_class\n" );
